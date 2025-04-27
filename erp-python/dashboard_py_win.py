@@ -31,13 +31,6 @@ SERVICOS = [
 ]
 
 # ------------------------------------------
-# HTML (igual ao que montamos, adaptado no final para Windows)
-# ------------------------------------------
-
-# [MESMO HTML que te passei acima, não mudou]
-# [Apenas o BACKEND que muda: comandos Windows]
-
-# ------------------------------------------
 # Funções Flask (Backend) adaptadas para Windows
 # ------------------------------------------
 
