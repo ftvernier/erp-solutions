@@ -17,7 +17,9 @@ Este projeto é um **painel web interativo em Flask** para monitorar, iniciar/pa
 
 ## 🚀 Instalação
 
-1. Crie o ambiente virtual:
+### 1. Crie o ambiente virtual:
+
+```bash
 python3.10 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
@@ -26,15 +28,18 @@ pip install -r requirements.txt
 Crie o arquivo .env no mesmo diretório do dashboard.py com o seguinte conteúdo:
 
 SECRET_KEY=sua_chave_secreta_segura
-Use um gerador como passwordwolf.com para criar uma chave segura
 
-4. Execute localmente (modo dev)
+Use um gerador como https://passwordwolf.com para criar uma chave segura.
+
+3. Execute localmente (modo dev)
 source venv/bin/activate
 python dashboard.py
 
 🛠️ Implantação com systemd (Linux)
+Crie o arquivo de serviço:
 
-/etc/systemd/system/dashboard-erp.service
+# /etc/systemd/system/dashboard-erp.service
+
 [Unit]
 Description=Dashboard de Monitoramento ERP Protheus
 After=network.target
@@ -46,18 +51,24 @@ Environment="PYTHONUNBUFFERED=1"
 Restart=always
 User=totvs
 Group=totvs
+
 [Install]
 WantedBy=multi-user.target
-
-Ative e inicie:
-
+Ative e inicie o serviço:
+bash
+Copiar
+Editar
 sudo systemctl daemon-reexec
 sudo systemctl daemon-reload
 sudo systemctl enable dashboard-erp.service
 sudo systemctl start dashboard-erp.service
 
 🔒 Acesso
+As permissões são definidas diretamente no código:
 
+python
+Copiar
+Editar
 USUARIOS = {
     "squad-erp": {
         "senha": "senha_segura",
@@ -68,7 +79,6 @@ USUARIOS = {
         "permissoes": "visualizacao"
     }
 }
-
 💡 Telas do sistema
 Página inicial com status dos serviços
 
@@ -86,4 +96,6 @@ Staff Software Engineer - Especialista em ERP Protheus
 https://www.linkedin.com/in/fernando-v-10758522/
 
 📢 Licença
-Distribuído sob licença MIT. Sinta-se à vontade para usar e adaptar conforme a sua realidade.
+Distribuído sob licença MIT.
+Sinta-se à vontade para usar, adaptar e contribuir com melhorias para sua realidade.
+
