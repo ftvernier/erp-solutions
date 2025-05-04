@@ -63,7 +63,7 @@ def executar_limpeza():
         novo_conteudo = request.form.get('conteudo')
         with open(CAMINHO_LIMPEZA, 'w') as f:
             f.write(novo_conteudo)
-        mensagem = " Script atualizado com sucesso!"
+        mensagem = "Script atualizado com sucesso!"
         conteudo_script = novo_conteudo
 
     return render_template_string('''
@@ -138,9 +138,9 @@ def limpeza_exec():
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT,
                                    text=True)
-        return f"✅ Execução Finalizada:\n\n{resultado.stdout}"
+        return f"Execução Finalizada:\n\n{resultado.stdout}"
     except Exception as e:
-        return f"❌ Erro ao executar script:\n{str(e)}"
+        return f"Erro ao executar script:\n{str(e)}"
 
 
 
