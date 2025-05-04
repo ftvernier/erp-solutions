@@ -27,7 +27,9 @@ pip install -r requirements.txt
 2. Configure variáveis de ambiente
 Crie o arquivo .env no mesmo diretório do dashboard.py com o seguinte conteúdo:
 
-SECRET_KEY=sua_chave_secreta_segura
+SECRET_KEY=chave_muito_secreta_aqui
+ADMIN_PASSWORD=senha_admin_segura
+VIEWER_PASSWORD=senha_viewer_segura
 
 Use um gerador como https://passwordwolf.com para criar uma chave segura.
 
