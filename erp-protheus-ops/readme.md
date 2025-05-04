@@ -34,7 +34,7 @@ python dashboard.py
 
 🛠️ Implantação com systemd (Linux)
 
-# /etc/systemd/system/dashboard-erp.service
+/etc/systemd/system/dashboard-erp.service
 [Unit]
 Description=Dashboard de Monitoramento ERP Protheus
 After=network.target
