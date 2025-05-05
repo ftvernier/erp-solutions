@@ -68,9 +68,6 @@ sudo systemctl start dashboard-erp.service
 🔒 Acesso
 As permissões são definidas diretamente no código:
 
-python
-Copiar
-Editar
 USUARIOS = {
     "squad-erp": {
         "senha": "senha_segura",
