@@ -23,3 +23,23 @@ A procedure `[dbo].[MaintainIndexes]` percorre todos os índices das tabelas no 
 - Cada ação é envolta por uma **transação segura**, com `TRY/CATCH` para garantir rollback em caso de erro.
 - O tempo de execução de cada comando é **calculado e exibido** com precisão de segundos.
 
+## 🧾 Exemplo de saída no SQL Server
+
+Executed: ALTER INDEX [IDX_MYTABLE] ON [dbo].[MYTABLE] REBUILD; | Start Time: 2025-05-09 07:22:01.123 | End Time: 2025-05-09 07:22:08.456 | Elapsed Time: 7 seconds
+
+
+## 🛡️ Boas práticas aplicadas
+
+- Evita manutenção desnecessária em índices com baixa fragmentação.
+- Proteção contra falhas com `ROLLBACK` seguro.
+- Totalmente compatível com ambientes produtivos do SQL Server em uso com o ERP TOTVS Protheus.
+
+## 💡 Dica para agendamento
+
+Para manter a performance do banco, recomendamos agendar a execução da procedure semanalmente fora do horário de pico, utilizando o SQL Server Agent:
+
+```sql
+EXEC dbo.MaintainIndexes;
+
+👨‍💻 Autor: Fernando Vernier
+📅 Data de criação: 09/05/2025
