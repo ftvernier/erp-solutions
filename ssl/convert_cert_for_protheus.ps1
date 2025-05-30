@@ -6,7 +6,7 @@ $wslCertPath = "\\wsl$\Ubuntu\etc\letsencrypt\live\seu-dominio.com"
 $windowsDestPath = "C:\totvs\certs"
 $certFile = "cert.pem"
 $keyFile = "privkey.pem"
-$convertedKeyFile = "stg-protheus.key"
+$convertedKeyFile = "protheus.key"
 
 # Verifica se o diretório de destino existe
 if (!(Test-Path $windowsDestPath)) {
