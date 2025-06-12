@@ -269,7 +269,7 @@ Edite as variáveis no workflow para incluir/remover ambientes:
 - name: Criar novas pastas com timestamp
   run: |
     TIMESTAMP=$(date +%Y%m%d_%H%M)
-    for dir in producao solar faturamento SEU_AMBIENTE; do
+    for dir in producao faturamento SEU_AMBIENTE; do
       mkdir -p "/totvs/p12prd/apo/$dir/$TIMESTAMP"
     done
 ```
