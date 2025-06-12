@@ -59,8 +59,6 @@ Este projeto implementa um pipeline completo de CI/CD para automatizar o process
 │   └── appserver_*/                # Outros AppServers
 └── apo/                            # Repositório de objetos
     ├── producao/                   # Ambiente produção
-    ├── solar/                      # Ambiente solar
-    └── faturamento/                # Ambiente faturamento
 
 /totvs/scripts/                     # Scripts auxiliares
 └── gerenciar_servicos.sh           # Script de gerenciamento de serviços
