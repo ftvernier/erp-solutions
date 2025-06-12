@@ -18,7 +18,7 @@ Este projeto implementa um pipeline completo de CI/CD para automatizar o process
 
 ## 📊 Resultados
 
-- **90% redução no tempo de deploy** (de 45min para 5min)
+- **90% redução no tempo de deploy** (de 30min para 5min)
 - **Zero erros humanos** no processo
 - **100% rastreabilidade** via Git
 - **Rollback médio de 3 minutos**
@@ -47,8 +47,8 @@ Este projeto implementa um pipeline completo de CI/CD para automatizar o process
 
 ### Estrutura de Diretórios
 ```
-/opt/git_protheus/protheus/          # Repositório Git com fontes
-├── Includes/                        # Arquivos de include
+/opt/git_protheus/protheus/         # Repositório Git com fontes
+├── Includes/                       # Arquivos de include
 ├── *.prw                           # Fontes Protheus
 └── *.tlpp                          # Fontes TLPP
 
