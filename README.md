@@ -38,6 +38,9 @@ Este repositório reúne soluções práticas e inovadoras desenvolvidas ao long
 - Desenvolvimento de relatórios e dashboards
 - Criação de rotinas automatizadas
 - Otimização de performance
+- SQL
+- PostGre
+- Angular / PO-UI
 
 ### 🔗 Integrações
 - APIs REST para conectar sistemas externos
