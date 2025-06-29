@@ -25,6 +25,7 @@ Este repositório reúne soluções práticas e inovadoras desenvolvidas ao long
 - ![ADVPL](https://img.shields.io/badge/ADVPL-Programming-green?style=flat-square) **ADVPL** - Linguagem nativa do Protheus
 - ![Python](https://img.shields.io/badge/Python-3.x-yellow?style=flat-square) **Python** - Automação e integração
 - ![API](https://img.shields.io/badge/API-REST-orange?style=flat-square) **APIs REST** - Integração entre sistemas
+- ![Angular](https://img.shields.io/badge/Angular-Framework-red?style=flat-square) **Angular** - Framework frontend
 
 ### Cloud & DevOps
 - ![AWS](https://img.shields.io/badge/AWS-Cloud-orange?style=flat-square) **Amazon Web Services**
