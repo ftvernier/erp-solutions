@@ -122,7 +122,7 @@ git push origin feature/nova-funcionalidade
 ## 🌟 Comunidade
 
 ### Conecte-se Comigo
-- 💼 **LinkedIn**: [Compartilhando conhecimento ERP](https://linkedin.com/in/seu-perfil)
+- 💼 **LinkedIn**: [Fernando Vernier](https://www.linkedin.com/in/fernando-v-10758522/)
 - 📧 **Email**: fernando.vernier@hotmail.com
 
 ## 📄 Licença
