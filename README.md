@@ -51,19 +51,6 @@ Este repositório reúne soluções práticas e inovadoras desenvolvidas ao long
 - Monitoramento e observabilidade
 - Backup e recuperação de dados
 
-## 📁 Estrutura do Repositório
-
-```
-erp-solutions/
-├── 📂 automacao/          # Scripts de automação
-├── 📂 customizacoes/      # Customizações Protheus
-├── 📂 integracao/         # Soluções de integração
-├── 📂 apis/               # APIs e webservices
-├── 📂 documentacao/       # Documentação técnica
-├── 📂 exemplos/           # Exemplos práticos
-└── 📂 ferramentas/        # Ferramentas auxiliares
-```
-
 ## 🚀 Como Começar
 
 ### Pré-requisitos
