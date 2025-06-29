@@ -144,7 +144,7 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 *"A tecnologia é melhor quando aproxima as pessoas e simplifica processos"*
 
 [![GitHub](https://img.shields.io/badge/GitHub-ftvernier-black?style=flat-square&logo=github)](https://github.com/ftvernier)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-blue?style=flat-square&logo=linkedin)](https://linkedin.com/in/seu-perfil)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-blue?style=flat-square&logo=linkedin)]([https://linkedin.com/in/seu-perfil](https://www.linkedin.com/in/fernando-v-10758522/))
 
 </div>
 
