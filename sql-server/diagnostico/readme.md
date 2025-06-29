@@ -240,9 +240,8 @@ Encontrou um problema? [Abra uma issue](https://github.com/ftvernier/sql-diagnos
 Participe das discussões na [área de Discussions](https://github.com/ftvernier/sql-diagnostic-generator/discussions)
 
 ### 📧 Contato Direto
-- **LinkedIn**: [Seu Perfil](https://linkedin.com/in/seu-perfil)
-- **Email**: contato@seudominio.com
-
+- **LinkedIn**: [Fernando Vernier]([https://linkedin.com/in/seu-perfil](https://www.linkedin.com/in/fernando-v-10758522/))
+- **Email**: fernando.vernier@hotmail.com
 ---
 
 <div align="center">
