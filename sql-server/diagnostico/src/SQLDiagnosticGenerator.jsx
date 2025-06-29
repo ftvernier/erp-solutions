@@ -353,7 +353,7 @@ ORDER BY s.last_request_start_time DESC;`
       script: `-- =====================================================
 -- STORED PROCEDURE - MANUTENÇÃO AUTOMÁTICA DE ÍNDICES
 -- =====================================================
-USE [SEUBANCO]
+USE [TOTVS2310]
 GO
 /****** Object:  StoredProcedure [dbo].[MaintainIndexes]    Script Date: 6/29/2025 11:57:30 AM ******/
 SET ANSI_NULLS ON
@@ -965,9 +965,34 @@ ORDER BY qs.total_elapsed_time / qs.execution_count DESC;`
         )}
 
         {/* Footer */}
-        <div className="text-center mt-8 text-gray-600">
-          <p>🚀 Scripts baseados em DMVs do SQL Server para ambiente Protheus</p>
-          <p className="text-sm mt-1">Use com responsabilidade em ambiente de produção!</p>
+        <div className="text-center mt-8">
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-4">
+            <div className="flex items-center justify-center gap-3 mb-3">
+              <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-lg">👨‍💻</span>
+              </div>
+              <div>
+                <div className="font-semibold text-gray-800">Desenvolvido por: Fernando Vernier</div>
+                <a 
+                  href="https://www.linkedin.com/in/fernando-v-10758522/" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                >
+                  <span>🔗</span>
+                  linkedin.com/in/fernando-v-10758522
+                </a>
+              </div>
+            </div>
+            <p className="text-gray-500 text-sm">
+              Especialista em ERP Protheus • Soluções SQL Server • Automação de Processos
+            </p>
+          </div>
+          
+          <div className="text-gray-600">
+            <p>🚀 Scripts baseados em DMVs do SQL Server para ambiente Protheus</p>
+            <p className="text-sm mt-1">Use com responsabilidade em ambiente de produção!</p>
+          </div>
         </div>
       </div>
     </div>
