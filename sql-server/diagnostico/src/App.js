@@ -1,4 +1,4 @@
-import SQLDiagnosticGenerator from './SQLDiagnosticGenerator';
+import SQLDiagnosticGenerator from './SQLDiagnosticGenerator.jsx';
 
 function App() {
   return (
