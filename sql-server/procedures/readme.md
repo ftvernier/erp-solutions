@@ -20,7 +20,7 @@ Este sistema SQL foi desenvolvido para identificar, registrar e opcionalmente fi
 ```
 ├── sql-server/
 ├── procedures
-    ├── monitor_kill.sql          # Script completo do sistema
+    ├── monitor_kill.sql                 # Script completo do sistema
     └── README.md                        # Este arquivo
 ```
 
