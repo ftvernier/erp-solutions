@@ -1,7 +1,7 @@
 -- =====================================================
 -- SISTEMA DE MONITORAMENTO DE PERFORMANCE ORACLE
 -- Detecta, registra e opcionalmente finaliza processos problemáticos
--- Autor: Fernando Vernier (Convertido para Oracle)
+-- Autor: Fernando Vernier
 -- GitHub: https://github.com/ftvernier/erp-solutions
 -- =====================================================
 
