@@ -1,4 +1,4 @@
-# Sistema de Monitoramento de Performance SQL Server
+# Sistema de Monitoramento de Performance SQL Server / Oracle
 
 ## 📋 Descrição
 
