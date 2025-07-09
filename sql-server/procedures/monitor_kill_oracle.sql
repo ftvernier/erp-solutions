@@ -51,9 +51,9 @@ BEGIN
         EXECUTE IMMEDIATE 'CREATE INDEX IX_PERFMON_EVENT_TYPE ON PERFORMANCE_MONITOR_LOG (EVENT_TYPE)';
         EXECUTE IMMEDIATE 'CREATE INDEX IX_PERFMON_SESSION_ID ON PERFORMANCE_MONITOR_LOG (SESSION_ID)';
         
-        DBMS_OUTPUT.PUT_LINE('✅ Tabela PERFORMANCE_MONITOR_LOG criada com sucesso!');
+        DBMS_OUTPUT.PUT_LINE('Tabela PERFORMANCE_MONITOR_LOG criada com sucesso!');
     ELSE
-        DBMS_OUTPUT.PUT_LINE('ℹ️ Tabela PERFORMANCE_MONITOR_LOG já existe.');
+        DBMS_OUTPUT.PUT_LINE('Tabela PERFORMANCE_MONITOR_LOG já existe.');
     END IF;
 END;
 /
@@ -934,10 +934,10 @@ BEGIN
         DBMS_OUTPUT.PUT_LINE('Minutos desde última execução: ' || ROUND(v_minutes_since_last, 2));
         
         IF v_minutes_since_last > 60 THEN
-            DBMS_OUTPUT.PUT_LINE('⚠️  ATENÇÃO: Sistema não executa há mais de 1 hora!');
+            DBMS_OUTPUT.PUT_LINE(' ATENÇÃO: Sistema não executa há mais de 1 hora!');
         END IF;
     ELSE
-        DBMS_OUTPUT.PUT_LINE('❌ ERRO: Nenhuma execução encontrada!');
+        DBMS_OUTPUT.PUT_LINE('ERRO: Nenhuma execução encontrada!');
     END IF;
     
     -- Verificar taxa de erro
@@ -950,7 +950,7 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Taxa de erro (24h): ' || v_error_rate || '%');
     
     IF v_error_rate > 10 THEN
-        DBMS_OUTPUT.PUT_LINE('⚠️  ATENÇÃO: Taxa de erro elevada!');
+        DBMS_OUTPUT.PUT_LINE('⚠ATENÇÃO: Taxa de erro elevada!');
     END IF;
     
     -- Verificar tamanho da tabela
@@ -960,7 +960,7 @@ BEGIN
     DBMS_OUTPUT.PUT_LINE('Total de registros na tabela: ' || v_table_size);
     
     IF v_table_size > 1000000 THEN
-        DBMS_OUTPUT.PUT_LINE('⚠️  ATENÇÃO: Tabela muito grande, considere limpeza!');
+        DBMS_OUTPUT.PUT_LINE('ATENÇÃO: Tabela muito grande, considere limpeza!');
     END IF;
     
     -- Verificar jobs agendados
