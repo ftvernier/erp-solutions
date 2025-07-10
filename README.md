@@ -27,7 +27,9 @@ Este repositório reúne soluções práticas e inovadoras desenvolvidas ao long
 - ![API](https://img.shields.io/badge/API-REST-orange?style=flat-square) **APIs REST** - Integração entre sistemas
 - ![Angular](https://img.shields.io/badge/Angular-Framework-red?style=flat-square) **Angular** - Framework frontend
 
-### Cloud & DevOps
+### Databases & Cloud
+- ![SQL](https://img.shields.io/badge/SQL-Database-purple?style=flat-square) **SQL Server** - Banco de dados relacional
+- ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue?style=flat-square) **PostgreSQL** - Banco de dados avançado
 - ![AWS](https://img.shields.io/badge/AWS-Cloud-orange?style=flat-square) **Amazon Web Services**
 - ![Docker](https://img.shields.io/badge/Docker-Container-blue?style=flat-square) **Docker** - Containerização
 - ![Git](https://img.shields.io/badge/Git-Version_Control-red?style=flat-square) **Git** - Controle de versão
@@ -39,9 +41,7 @@ Este repositório reúne soluções práticas e inovadoras desenvolvidas ao long
 - Desenvolvimento de relatórios e dashboards
 - Criação de rotinas automatizadas
 - Otimização de performance
-- SQL
-- PostGre
-- Angular / PO-UI
+- Integração com PO-UI (Angular)
 
 ### 🔗 Integrações
 - APIs REST para conectar sistemas externos
@@ -70,15 +70,8 @@ git clone https://github.com/ftvernier/erp-solutions.git
 
 # Navegue para o diretório
 cd erp-solutions
-
-# Instale dependências Python (se necessário)
-pip install -r requirements.txt
 ```
 
-### Primeiros Passos
-1. Explore a pasta `exemplos/` para entender a estrutura
-2. Consulte a `documentacao/` para guias detalhados
-3. Adapte as soluções às suas necessidades específicas
 
 ## 📚 Recursos Educacionais
 
@@ -119,10 +112,6 @@ git push origin feature/nova-funcionalidade
 # Abra um Pull Request
 ```
 
-## 📊 Estatísticas do Projeto
-
-![GitHub Activity Graph](https://github-readme-activity-graph.vercel.app/graph?username=ftvernier&theme=github-compact)
-
 ## 🌟 Comunidade
 
 ### Conecte-se Comigo
@@ -134,10 +123,11 @@ git push origin feature/nova-funcionalidade
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
 ### 📈 Metas 2025
-- Expandir base de usuários
-- Adicionar mais integrações
-- Melhorar documentação
-- Criar vídeo tutoriais
+- [ ] Expandir base de usuários da comunidade
+- [ ] Adicionar mais integrações com sistemas externos
+- [ ] Criar documentação interativa
+- [ ] Desenvolver vídeo tutoriais
+- [ ] Implementar templates de código reutilizáveis
 
 ---
 
@@ -148,10 +138,10 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 *"A tecnologia é melhor quando aproxima as pessoas e simplifica processos"*
 
 [![GitHub](https://img.shields.io/badge/GitHub-ftvernier-black?style=flat-square&logo=github)](https://github.com/ftvernier)
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-blue?style=flat-square&logo=linkedin)]([https://linkedin.com/in/seu-perfil](https://www.linkedin.com/in/fernando-v-10758522/))
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Conectar-blue?style=flat-square&logo=linkedin)](https://www.linkedin.com/in/fernando-v-10758522/)
 
 </div>
 
 ---
 
-<sub>📅 Última atualização: Junho 2025 | 🔄 Atualizado regularmente com novas soluções</sub>
+<sub>📅 Última atualização: Julho 2025 | 🔄 Atualizado regularmente com novas soluções</sub>
