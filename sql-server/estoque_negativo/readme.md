@@ -168,7 +168,6 @@ AND EXISTS (
 - **Issues**: [GitHub Issues](../../issues)
 - **Discussões**: [GitHub Discussions](../../discussions)
 - **LinkedIn**: [Fernando Vernier]([https://linkedin.com/in/seuprofile](https://www.linkedin.com/in/fernando-v-10758522/))
-- **LinkedIn**: [Fernando Vernier]()
 
 ## 📄 Licença
 
