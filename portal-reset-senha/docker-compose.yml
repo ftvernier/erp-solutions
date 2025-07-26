@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  protheus-reset-portal:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - PROTHEUS_URL=${PROTHEUS_URL:-http://localhost:8080/rest}
+      - PROTHEUS_USER=${PROTHEUS_USER:-admin}
+      - PROTHEUS_PASS=${PROTHEUS_PASS}
+      - SMTP_SERVER=${SMTP_SERVER:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SECRET_KEY=${SECRET_KEY:-chave-padrao-insegura}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

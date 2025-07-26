@@ -145,3 +145,18 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 ---
 
 <sub>📅 Última atualização: Julho 2025 | 🔄 Atualizado regularmente com novas soluções</sub>
+
+## 🔐 Portal de Reset de Senha
+
+Portal web para reset de senha do ERP Protheus usando a API SCIM oficial da TOTVS.
+
+### Funcionalidades:
+- Reset seguro com código de verificação por email
+- Interface responsiva que funciona no celular
+- Rate limiting para prevenir ataques
+- Deploy fácil com Docker
+
+📁 **Localização:** [portal-reset-senha/](./portal-reset-senha/)
+
+📖 **Documentação:** [portal-reset-senha/README.md](./portal-reset-senha/README.md)
+

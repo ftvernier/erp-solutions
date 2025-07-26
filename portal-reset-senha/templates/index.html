@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset de Senha - Protheus</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .container { background: white; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); padding: 40px; max-width: 450px; width: 100%; text-align: center; }
+        .logo { font-size: 2.5rem; color: #667eea; margin-bottom: 10px; }
+        h1 { color: #333; margin-bottom: 10px; font-size: 1.8rem; }
+        .subtitle { color: #666; margin-bottom: 30px; }
+        .form-group { margin-bottom: 20px; text-align: left; }
+        label { display: block; margin-bottom: 8px; color: #555; font-weight: 500; }
+        input { width: 100%; padding: 15px; border: 2px solid #e1e8ed; border-radius: 10px; font-size: 1rem; transition: all 0.3s ease; background: #f8f9fa; }
+        input:focus { outline: none; border-color: #667eea; background: white; box-shadow: 0 0 0 3px rgba(102,126,234,0.1); }
+        .btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease; margin-top: 10px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102,126,234,0.3); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+        .loading { display: none; margin: 20px 0; }
+        .loading-spinner { border: 3px solid #f3f3f3; border-top: 3px solid #667eea; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 0 auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .alert { padding: 15px; border-radius: 10px; margin-bottom: 20px; display: none; }
+        .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .alert-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .step { display: none; }
+        .step.active { display: block; }
+        .back-btn { background: #6c757d; margin-top: 10px; }
+        .back-btn:hover { background: #5a6268; }
+        .success-icon { font-size: 4rem; color: #28a745; margin-bottom: 20px; }
+        .code-input { text-align: center; font-size: 1.5rem; font-weight: bold; letter-spacing: 5px; }
+        .timer { color: #666; font-size: 0.9rem; margin-top: 10px; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e8ed; text-align: center; color: #666; font-size: 0.85rem; }
+        .footer a { color: #667eea; text-decoration: none; font-weight: 500; transition: color 0.3s ease; }
+        .footer a:hover { color: #764ba2; text-decoration: underline; }
+        .developer-info { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 10px; }
+        .linkedin-icon { width: 16px; height: 16px; fill: #0077b5; }
+        @media (max-width: 480px) {
+            .container { padding: 30px 20px; }
+            h1 { font-size: 1.5rem; }
+            .logo { font-size: 2rem; }
+            .developer-info { flex-direction: column; gap: 5px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Passo 1 -->
+        <div id="step1" class="step active">
+            <div class="logo">🔐</div>
+            <h1>Reset de Senha</h1>
+            <p class="subtitle">Digite seu email corporativo para receber o código de verificação</p>
+            <div id="alert" class="alert"></div>
+            <form id="emailForm">
+                <div class="form-group">
+                    <label for="email">Email Corporativo</label>
+                    <input type="email" id="email" placeholder="seu.email@empresa.com.br" required>
+                </div>
+                <button type="submit" class="btn" id="sendCodeBtn">Enviar Código</button>
+            </form>
+            <div class="loading" id="loading1">
+                <div class="loading-spinner"></div>
+                <p>Enviando código...</p>
+            </div>
+        </div>
+
+        <!-- Passo 2 -->
+        <div id="step2" class="step">
+            <div class="logo">📧</div>
+            <h1>Código Enviado</h1>
+            <p class="subtitle">Verifique seu email e digite o código de 6 dígitos junto com sua nova senha</p>
+            <div id="alert2" class="alert"></div>
+            <form id="verifyForm">
+                <div class="form-group">
+                    <label for="code">Código de Verificação</label>
+                    <input type="text" id="code" class="code-input" placeholder="000000" maxlength="6" required>
+                    <div class="timer">Válido por: <span id="countdown">15:00</span></div>
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">Nova Senha</label>
+                    <input type="password" id="newPassword" placeholder="Mínimo 6 caracteres" minlength="6" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirmPassword">Confirmar Nova Senha</label>
+                    <input type="password" id="confirmPassword" placeholder="Digite a senha novamente" minlength="6" required>
+                </div>
+                <button type="submit" class="btn" id="verifyBtn">Redefinir Senha</button>
+                <button type="button" class="btn back-btn" onclick="goToStep1()">Voltar</button>
+            </form>
+            <div class="loading" id="loading2">
+                <div class="loading-spinner"></div>
+                <p>Atualizando senha...</p>
+            </div>
+        </div>
+
+        <!-- Passo 3 -->
+        <div id="step3" class="step">
+            <div class="success-icon">✅</div>
+            <h1>Senha Alterada!</h1>
+            <p class="subtitle">Sua senha foi alterada com sucesso. Você já pode fazer login no sistema Protheus.</p>
+            <div id="userInfo" class="alert alert-info" style="display: block;">
+                <strong>Usuário:</strong> <span id="userName"></span>
+            </div>
+            <button type="button" class="btn" onclick="resetPortal()">Fazer Novo Reset</button>
+        </div>
+
+        <!-- Rodapé -->
+        <div class="footer">
+            <p>Portal de Reset de Senha - Protheus</p>
+            <div class="developer-info">
+                <span>Desenvolvido por</span>
+                <a href="https://www.linkedin.com/in/fernando-v-10758522/" target="_blank" rel="noopener noreferrer">
+                    <svg class="linkedin-icon" viewBox="0 0 24 24">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    Fernando Vernier
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentEmail = '';
+        let countdownInterval;
+
+        function showStep(stepNumber) {
+            document.querySelectorAll('.step').forEach(step => step.classList.remove('active'));
+            document.getElementById(`step${stepNumber}`).classList.add('active');
+        }
+
+        function goToStep1() {
+            showStep(1);
+            if (countdownInterval) clearInterval(countdownInterval);
+        }
+
+        function resetPortal() {
+            document.getElementById('emailForm').reset();
+            document.getElementById('verifyForm').reset();
+            hideAllAlerts();
+            goToStep1();
+        }
+
+        function showAlert(stepNum, type, message) {
+            const alert = document.getElementById(stepNum === 1 ? 'alert' : 'alert2');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            alert.style.display = 'block';
+        }
+
+        function hideAllAlerts() {
+            document.querySelectorAll('.alert').forEach(alert => alert.style.display = 'none');
+        }
+
+        function startCountdown() {
+            let timeLeft = 15 * 60;
+            const countdownElement = document.getElementById('countdown');
+            countdownInterval = setInterval(() => {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+                countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                if (timeLeft <= 0) {
+                    clearInterval(countdownInterval);
+                    showAlert(2, 'error', 'Código expirado. Solicite um novo código.');
+                    setTimeout(() => goToStep1(), 3000);
+                }
+                timeLeft--;
+            }, 1000);
+        }
+
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const sendCodeBtn = document.getElementById('sendCodeBtn');
+            const loading = document.getElementById('loading1');
+            
+            hideAllAlerts();
+            sendCodeBtn.disabled = true;
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/send-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentEmail = email;
+                    showAlert(1, 'success', data.message);
+                    setTimeout(() => { showStep(2); startCountdown(); }, 2000);
+                } else {
+                    showAlert(1, 'error', data.detail);
+                }
+            } catch (error) {
+                showAlert(1, 'error', 'Erro de conexão. Verifique sua internet.');
+            }
+            
+            sendCodeBtn.disabled = false;
+            loading.style.display = 'none';
+        });
+
+        document.getElementById('verifyForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const code = document.getElementById('code').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const verifyBtn = document.getElementById('verifyBtn');
+            const loading = document.getElementById('loading2');
+            
+            hideAllAlerts();
+            
+            if (newPassword !== confirmPassword) {
+                showAlert(2, 'error', 'As senhas não coincidem.');
+                return;
+            }
+            if (newPassword.length < 6) {
+                showAlert(2, 'error', 'A senha deve ter pelo menos 6 caracteres.');
+                return;
+            }
+            
+            verifyBtn.disabled = true;
+            loading.style.display = 'block';
+            
+            try {
+                const response = await fetch('/api/verify-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: currentEmail,
+                        code: code,
+                        new_password: newPassword,
+                        confirm_password: confirmPassword
+                    })
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('userName').textContent = data.user_name;
+                    clearInterval(countdownInterval);
+                    showStep(3);
+                } else {
+                    showAlert(2, 'error', data.detail);
+                }
+            } catch (error) {
+                showAlert(2, 'error', 'Erro de conexão. Verifique sua internet.');
+            }
+            
+            verifyBtn.disabled = false;
+            loading.style.display = 'none';
+        });
+
+        document.getElementById('code').addEventListener('input', (e) => {
+            e.target.value = e.target.value.replace(/\D/g, '');
+        });
+
+        document.getElementById('confirmPassword').addEventListener('input', (e) => {
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = e.target.value;
+            e.target.style.borderColor = (confirmPassword && newPassword !== confirmPassword) ? '#dc3545' : '#e1e8ed';
+        });
+    </script>
+</body>
+</html>
