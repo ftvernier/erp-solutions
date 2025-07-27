@@ -288,7 +288,8 @@ Após iniciar o dashboard, acesse:
 dashboard-erp-protheus/
 ├── dashboard_protheus_ops.py                  # Versão Linux
 ├── dashboard_protheus_ops_windows.py          # Versão Windows
-├── requirements.txt                           # Dependências Python
+├── requirements_linux.txt                     # Dependências Python
+├── requirements_windows.txt                   # Dependências Python
 └── README.md
 ```
 
