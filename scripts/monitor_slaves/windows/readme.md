@@ -1,4 +1,4 @@
-# 🔧 Monitor de Serviços Protheus para Windows
+# 🔧 Self-Healing de Serviços Protheus para Windows
 
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-blue.svg)](https://docs.microsoft.com/en-us/powershell/)
 [![Windows](https://img.shields.io/badge/Windows-Server%202016+-green.svg)](https://www.microsoft.com/windows-server)
