@@ -1,7 +1,6 @@
-# Script para monitorar e reiniciar serviços do ERP Protheus
-# Compatível com Windows Server
+# Script para monitorar e reiniciar servicos do ERP Protheus
+# Compativel com Windows Server e Windows 10/11
 # Autor: Fernando Vernier
-# Data: $(Get-Date -Format "yyyy-MM-dd")
 
 #Requires -RunAsAdministrator
 
@@ -12,7 +11,7 @@ param(
     [switch]$Status
 )
 
-# Configurações
+# Configuracoes
 $Script:LOG_FILE = "C:\Logs\protheus_monitor.log"
 $Script:SERVICES = @(
     "ProtheusAppServer01",
@@ -27,15 +26,15 @@ $Script:SERVICES = @(
     "ProtheusAppServer10"
 )
 
-# Estados considerados problemáticos
+# Estados considerados problematicos
 $Script:FAILED_STATES = @("Stopped", "StopPending", "StartPending", "PausePending", "ContinuePending")
 
-# Variáveis globais
+# Variaveis globais
 $Script:VERBOSE_MODE = $Verbose
 $Script:TEST_MODE = $Test
 $Script:STATUS_ONLY = $Status
 
-# Função para logging detalhado de ações
+# Funcao para logging detalhado de acoes
 function Write-ActionLog {
     param(
         [string]$ServiceName,
@@ -47,7 +46,7 @@ function Write-ActionLog {
     $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     $hostname = $env:COMPUTERNAME
     
-    $logEntry = "[$timestamp] [$hostname] AÇÃO: $Action | SERVIÇO: $ServiceName | STATUS: $Status"
+    $logEntry = "[$timestamp] [$hostname] ACAO: $Action | SERVICO: $ServiceName | STATUS: $Status"
     if (-not [string]::IsNullOrEmpty($Details)) {
         $logEntry += " | DETALHES: $Details"
     }
@@ -65,83 +64,66 @@ function Write-ActionLog {
         Add-Content -Path $Script:LOG_FILE -Value $logEntry -Encoding UTF8
     }
     catch {
-        Write-Warning "Erro ao escrever no log de ações: $($_.Exception.Message)"
+        Write-Warning "Erro ao escrever no log de acoes: $($_.Exception.Message)"
     }
 }
 
-# Função para logging
-function Write-LogMessage {
-    param([string]$Message)
-    
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logEntry = "[$timestamp] $Message"
-    
-    # Exibe no console
-    Write-Host $logEntry
-    
-    # Escreve no arquivo de log
-    try {
-        Add-Content -Path $Script:LOG_FILE -Value $logEntry -Encoding UTF8
-    }
-    catch {
-        Write-Warning "Erro ao escrever no log: $($_.Exception.Message)"
-    }
-}
+# Funcao para verificar se esta na janela de manutencao
 function Test-MaintenanceWindow {
-    $currentDay = (Get-Date).DayOfWeek.value__  # 0=Sunday, 1=Monday, ..., 6=Saturday
+    $currentDay = (Get-Date).DayOfWeek.value__
     $currentTime = Get-Date -Format "HHmm"
     
-    # Sábado = 6, entre 21:59 e 22:05
+    # Sabado = 6, entre 21:59 e 22:05
     if ($currentDay -eq 6 -and [int]$currentTime -ge 2159 -and [int]$currentTime -le 2205) {
-        return $true  # Está na janela de manutenção
+        return $true
     }
     
-    return $false  # Não está na janela de manutenção
+    return $false
 }
 
-# Função para verificar se há manutenção manual em andamento
+# Funcao para verificar se ha manutencao manual em andamento
 function Test-ManualMaintenance {
     $maintenanceFile = "$env:TEMP\protheus_manual_maintenance"
     
     if (Test-Path $maintenanceFile) {
-        $maintenanceStart = Get-Content $maintenanceFile -ErrorAction SilentlyContinue
-        $currentTime = [int64](Get-Date -UFormat %s)
-        
-        Write-LogMessage "Debug: Arquivo de manutenção manual encontrado: $maintenanceStart"
-        
-        # Se arquivo existe mas está vazio, considera como manutenção ativa
-        if ([string]::IsNullOrEmpty($maintenanceStart)) {
-            Write-LogMessage "Debug: Arquivo vazio - manutenção ativa"
-            return $true
-        }
-        
-        # Verifica se a manutenção manual não está muito antiga (máximo 2 horas)
         try {
+            $maintenanceStart = Get-Content $maintenanceFile -ErrorAction SilentlyContinue
+            $currentTime = [int64](Get-Date -UFormat %s)
+            
+            Write-LogMessage "Debug: Arquivo de manutencao manual encontrado: $maintenanceStart"
+            
+            # Se arquivo existe mas esta vazio, considera como manutencao ativa
+            if ([string]::IsNullOrEmpty($maintenanceStart)) {
+                Write-LogMessage "Debug: Arquivo vazio - manutencao ativa"
+                return $true
+            }
+            
+            # Verifica se a manutencao manual nao esta muito antiga (maximo 2 horas)
             $timeDiff = $currentTime - [int64]$maintenanceStart
             Write-LogMessage "Debug: Tempo decorrido: $timeDiff segundos"
             
-            if ($timeDiff -lt 7200) {  # 7200 segundos = 2 horas
-                Write-LogMessage "Debug: Manutenção manual válida - pausando monitor"
-                return $true  # Manutenção manual ativa
+            if ($timeDiff -lt 7200) {
+                Write-LogMessage "Debug: Manutencao manual valida - pausando monitor"
+                return $true
             }
             else {
                 # Remove arquivo antigo automaticamente
                 Remove-Item $maintenanceFile -Force -ErrorAction SilentlyContinue
-                Write-LogMessage "Arquivo de manutenção manual expirado removido automaticamente"
+                Write-LogMessage "Arquivo de manutencao manual expirado removido automaticamente"
             }
         }
         catch {
-            Write-LogMessage "Erro ao processar timestamp do arquivo de manutenção: $($_.Exception.Message)"
+            Write-LogMessage "Erro ao processar timestamp do arquivo de manutencao: $($_.Exception.Message)"
         }
     }
     else {
-        Write-LogMessage "Debug: Arquivo de manutenção manual não encontrado"
+        Write-LogMessage "Debug: Arquivo de manutencao manual nao encontrado"
     }
     
-    return $false  # Não há manutenção manual
+    return $false
 }
 
-# Função para logging
+# Funcao para logging
 function Write-LogMessage {
     param([string]$Message)
     
@@ -160,7 +142,7 @@ function Write-LogMessage {
     }
 }
 
-# Função para configurar logging
+# Funcao para configurar logging
 function Initialize-Logging {
     $logDir = Split-Path $Script:LOG_FILE -Parent
     
@@ -169,12 +151,12 @@ function Initialize-Logging {
             New-Item -Path $logDir -ItemType Directory -Force | Out-Null
         }
         catch {
-            Write-Error "Erro ao criar diretório de log: $($_.Exception.Message)"
+            Write-Error "Erro ao criar diretorio de log: $($_.Exception.Message)"
             exit 1
         }
     }
     
-    # Cria arquivo de log se não existir
+    # Cria arquivo de log se nao existir
     if (-not (Test-Path $Script:LOG_FILE)) {
         try {
             New-Item -Path $Script:LOG_FILE -ItemType File -Force | Out-Null
@@ -186,7 +168,7 @@ function Initialize-Logging {
     }
 }
 
-# Função para verificar o status de um serviço
+# Funcao para verificar o status de um servico
 function Get-ServiceStatus {
     param([string]$ServiceName)
     
@@ -217,7 +199,7 @@ function Get-ServiceStatus {
     }
 }
 
-# Função para verificar se o serviço está travado
+# Funcao para verificar se o servico esta travado
 function Test-ServiceHanging {
     param([string]$ServiceName)
     
@@ -227,42 +209,37 @@ function Test-ServiceHanging {
             return $false
         }
         
-        # Obtém processos relacionados ao serviço
-        $processes = Get-WmiObject -Class Win32_Service | Where-Object { $_.Name -eq $ServiceName } | ForEach-Object {
-            if ($_.ProcessId -and $_.ProcessId -ne 0) {
-                Get-Process -Id $_.ProcessId -ErrorAction SilentlyContinue
-            }
-        }
+        # Obtem processos relacionados ao servico
+        $serviceWmi = Get-WmiObject -Class Win32_Service | Where-Object { $_.Name -eq $ServiceName }
         
-        foreach ($proc in $processes) {
-            if ($proc) {
-                $cpuUsage = (Get-Counter "\Process($($proc.ProcessName))\% Processor Time" -ErrorAction SilentlyContinue).CounterSamples.CookedValue
+        if ($serviceWmi -and $serviceWmi.ProcessId -and $serviceWmi.ProcessId -ne 0) {
+            try {
+                $process = Get-Process -Id $serviceWmi.ProcessId -ErrorAction SilentlyContinue
                 
-                Write-LogMessage "🔧 Debug $ServiceName - PID: $($proc.Id), CPU: $([math]::Round($cpuUsage, 2))%, Respondendo: $($proc.Responding)"
-                
-                # Verifica condições de travamento
-                if ($proc.Responding -eq $false) {
-                    Write-LogMessage "$ServiceName detectado como não responsivo"
-                    return $true
+                if ($process) {
+                    Write-LogMessage "Debug $ServiceName - PID: $($process.Id), Respondendo: $($process.Responding)"
+                    
+                    # Verifica condicoes de travamento
+                    if ($process.Responding -eq $false) {
+                        Write-LogMessage "AVISO: $ServiceName detectado como nao responsivo"
+                        return $true
+                    }
                 }
-                
-                # CPU muito alta (>95%)
-                if ($cpuUsage -gt 95) {
-                    Write-LogMessage "$ServiceName com CPU muito alta: $([math]::Round($cpuUsage, 2))%"
-                    return $true
-                }
+            }
+            catch {
+                Write-LogMessage "Erro ao verificar processo: $($_.Exception.Message)"
             }
         }
         
         return $false
     }
     catch {
-        Write-LogMessage "Erro ao verificar se serviço está travado: $($_.Exception.Message)"
+        Write-LogMessage "Erro ao verificar se servico esta travado: $($_.Exception.Message)"
         return $false
     }
 }
 
-# Função para obter PIDs relacionados a um serviço
+# Funcao para obter processos relacionados a um servico
 function Get-ServiceProcesses {
     param([string]$ServiceName)
     
@@ -284,16 +261,16 @@ function Get-ServiceProcesses {
         return ($processes | Sort-Object Id -Unique)
     }
     catch {
-        Write-LogMessage "Erro ao obter processos do serviço: $($_.Exception.Message)"
+        Write-LogMessage "Erro ao obter processos do servico: $($_.Exception.Message)"
         return @()
     }
 }
 
-# Função para kill forçado de processos
+# Funcao para kill forcado de processos
 function Stop-ServiceProcesses {
     param([string]$ServiceName)
     
-    Write-LogMessage "Executando stop forçado para processos do $ServiceName"
+    Write-LogMessage "Executando stop forcado para processos do $ServiceName"
     
     $processes = Get-ServiceProcesses -ServiceName $ServiceName
     $killedCount = 0
@@ -323,120 +300,111 @@ function Stop-ServiceProcesses {
     # Aguarda um pouco
     Start-Sleep -Seconds 5
     
-    # Verifica processos remanescentes e usa kill forçado
+    # Verifica processos remanescentes e usa kill forcado
     $remainingProcesses = Get-ServiceProcesses -ServiceName $ServiceName
     if ($remainingProcesses.Count -gt 0) {
-        Write-LogMessage "🔪 Executando kill forçado para processos persistentes: $($remainingProcesses.Id -join ', ')"
+        Write-LogMessage "Executando kill forcado para processos persistentes: $($remainingProcesses.Id -join ', ')"
         foreach ($proc in $remainingProcesses) {
             try {
                 Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
                 $killedCount++
-                Write-LogMessage "KILL forçado executado para PID $($proc.Id)"
+                Write-LogMessage "KILL forcado executado para PID $($proc.Id)"
             }
             catch {
-                Write-LogMessage "Erro no kill forçado para PID $($proc.Id): $($_.Exception.Message)"
+                Write-LogMessage "Erro no kill forcado para PID $($proc.Id): $($_.Exception.Message)"
             }
         }
         Start-Sleep -Seconds 2
     }
     
-    Write-LogMessage "Stop forçado concluído. $killedCount processos encerrados"
+    Write-LogMessage "Stop forcado concluido. $killedCount processos encerrados"
     return $killedCount
 }
 
-# Função para reiniciar um serviço
+# Funcao para reiniciar um servico
 function Restart-ProtheusService {
     param(
         [string]$ServiceName,
         [string]$RestartReason = ""
     )
     
-    Write-LogMessage "Reiniciando serviço: $ServiceName"
+    Write-LogMessage "Reiniciando servico: $ServiceName"
     
     $serviceInfo = Get-ServiceStatus -ServiceName $ServiceName
     $forceKillNeeded = $false
     
-    # Condições que indicam necessidade de kill forçado
+    # Condicoes que indicam necessidade de kill forcado
     if ($serviceInfo.Status -in @("Stopped", "StopPending", "StartPending") -or
         $RestartReason -like "*travado*" -or 
-        $RestartReason -like "*não responsivo*") {
+        $RestartReason -like "*nao responsivo*") {
         $forceKillNeeded = $true
-        Write-LogMessage "Serviço em estado crítico - kill forçado será necessário"
+        Write-LogMessage "Servico em estado critico - kill forcado sera necessario"
     }
     
-    # Se kill forçado é necessário, executa antes
+    # Se kill forcado e necessario, executa antes
     if ($forceKillNeeded) {
         Stop-ServiceProcesses -ServiceName $ServiceName
     }
     
     try {
-        # Para o serviço
-        Write-LogMessage "Parando serviço $ServiceName..."
+        # Para o servico
+        Write-LogMessage "Parando servico $ServiceName..."
         Stop-Service -Name $ServiceName -Force -ErrorAction SilentlyContinue
         Start-Sleep -Seconds 3
         
-        # Verifica se ainda há processos rodando
+        # Verifica se ainda ha processos rodando
         $remainingProcesses = Get-ServiceProcesses -ServiceName $ServiceName
         if ($remainingProcesses.Count -gt 0) {
-            Write-LogMessage "Processos remanescentes detectados após Stop-Service"
+            Write-LogMessage "Processos remanescentes detectados apos Stop-Service"
             Stop-ServiceProcesses -ServiceName $ServiceName
         }
         
         # Aguarda limpeza completa
         Start-Sleep -Seconds 2
         
-        # Limpa possíveis arquivos temporários
-        $tempFiles = Get-ChildItem -Path $env:TEMP -Filter "*$ServiceName*" -ErrorAction SilentlyContinue
-        foreach ($file in $tempFiles) {
-            try {
+        # Limpa possiveis arquivos temporarios
+        try {
+            $tempFiles = Get-ChildItem -Path $env:TEMP -Filter "*$ServiceName*" -ErrorAction SilentlyContinue
+            foreach ($file in $tempFiles) {
                 Remove-Item $file.FullName -Force -ErrorAction SilentlyContinue
             }
-            catch {
-                # Ignora erros de limpeza
-            }
+        }
+        catch {
+            # Ignora erros de limpeza
         }
         
-        # Inicia o serviço
-        Write-LogMessage "Iniciando serviço $ServiceName..."
+        # Inicia o servico
+        Write-LogMessage "Iniciando servico $ServiceName..."
         Start-Service -Name $ServiceName
         Start-Sleep -Seconds 3
         
-        # Verifica se realmente está rodando
+        # Verifica se realmente esta rodando
         $newServiceInfo = Get-ServiceStatus -ServiceName $ServiceName
         
         if ($newServiceInfo.Status -eq "Running") {
-            Write-LogMessage "Serviço $ServiceName reiniciado com sucesso"
-            
-            # Envia notificação para o Slack
-            if (-not $Script:TEST_MODE) {
-                Send-SlackNotification -ServiceName $ServiceName -Status "success" -Reason $RestartReason
-            }
-            
+            Write-LogMessage "Servico $ServiceName reiniciado com sucesso"
+            Write-ActionLog -ServiceName $ServiceName -Action "REINICIAR_SERVICO" -Status "SUCESSO" -Details $RestartReason
             return $true
         }
         else {
-            Write-LogMessage "Serviço $ServiceName não ficou ativo após reinício: $($newServiceInfo.Status)"
-            
-            if (-not $Script:TEST_MODE) {
-                Send-SlackNotification -ServiceName $ServiceName -Status "failed" -Reason "Serviço não ficou ativo após reinício: $($newServiceInfo.Status)"
-            }
-            
+            Write-LogMessage "Servico $ServiceName nao ficou ativo apos reinicio: $($newServiceInfo.Status)"
+            Write-ActionLog -ServiceName $ServiceName -Action "REINICIAR_SERVICO" -Status "FALHA" -Details "Servico nao ficou ativo apos reinicio: $($newServiceInfo.Status)"
             return $false
         }
     }
     catch {
-        Write-LogMessage "Falha ao reiniciar o serviço $ServiceName - Erro: $($_.Exception.Message)"
+        Write-LogMessage "Falha ao reiniciar o servico $ServiceName - Erro: $($_.Exception.Message)"
         Write-ActionLog -ServiceName $ServiceName -Action "REINICIAR_SERVICO" -Status "FALHA" -Details "Erro: $($_.Exception.Message)"
         return $false
     }
 }
 
-# Função para verificar conectividade de rede
+# Funcao para verificar conectividade de rede
 function Test-NetworkConnectivity {
     try {
         $result = Test-NetConnection -ComputerName "8.8.8.8" -Port 53 -WarningAction SilentlyContinue
         if (-not $result.TcpTestSucceeded) {
-            Write-LogMessage "Possível problema de conectividade de rede detectado"
+            Write-LogMessage "Possivel problema de conectividade de rede detectado"
             return $false
         }
         return $true
@@ -447,12 +415,12 @@ function Test-NetworkConnectivity {
     }
 }
 
-# Função principal de monitoramento
+# Funcao principal de monitoramento
 function Start-ServiceMonitoring {
     $restartCount = 0
     $totalServices = $Script:SERVICES.Count
     
-    Write-LogMessage "Iniciando verificação de $totalServices serviços do Protheus"
+    Write-LogMessage "Iniciando verificacao de $totalServices servicos do Protheus"
     
     foreach ($serviceName in $Script:SERVICES) {
         Write-LogMessage "Verificando: $serviceName"
@@ -460,30 +428,30 @@ function Start-ServiceMonitoring {
         $serviceInfo = Get-ServiceStatus -ServiceName $serviceName
         
         if (-not $serviceInfo.Exists) {
-            Write-LogMessage "Serviço $serviceName não encontrado no sistema"
+            Write-LogMessage "Servico $serviceName nao encontrado no sistema"
             continue
         }
         
         $needsRestart = $false
         $reason = ""
         
-        # Verifica se está em estado problemático
+        # Verifica se esta em estado problematico
         if ($serviceInfo.Status -in $Script:FAILED_STATES) {
             $needsRestart = $true
-            $reason = "Estado problemático: $($serviceInfo.Status)"
+            $reason = "Estado problematico: $($serviceInfo.Status)"
         }
         
-        # Verifica se está travado (mesmo que rodando)
+        # Verifica se esta travado (mesmo que rodando)
         if (-not $needsRestart -and $serviceInfo.Status -eq "Running") {
             if (Test-ServiceHanging -ServiceName $serviceName) {
                 $needsRestart = $true
-                $reason = "Serviço travado/não responsivo"
+                $reason = "Servico travado/nao responsivo"
             }
         }
         
-        # Reinicia se necessário
+        # Reinicia se necessario
         if ($needsRestart) {
-            Write-LogMessage "🔧 $serviceName precisa ser reiniciado: $reason"
+            Write-LogMessage "$serviceName precisa ser reiniciado: $reason"
             Write-ActionLog -ServiceName $serviceName -Action "DETECTAR_PROBLEMA" -Status "AVISO" -Details $reason
             
             if (-not $Script:TEST_MODE) {
@@ -494,11 +462,11 @@ function Start-ServiceMonitoring {
                     # Verifica se realmente ficou ativo
                     $newServiceInfo = Get-ServiceStatus -ServiceName $serviceName
                     if ($newServiceInfo.Status -eq "Running") {
-                        Write-LogMessage "$serviceName está funcionando corretamente após reinício"
-                        Write-ActionLog -ServiceName $serviceName -Action "VERIFICAR_POS_REINICIO" -Status "SUCESSO" -Details "Serviço funcionando normalmente"
+                        Write-LogMessage "$serviceName esta funcionando corretamente apos reinicio"
+                        Write-ActionLog -ServiceName $serviceName -Action "VERIFICAR_POS_REINICIO" -Status "SUCESSO" -Details "Servico funcionando normalmente"
                     }
                     else {
-                        Write-LogMessage "$serviceName ainda apresenta problemas após reinício: $($newServiceInfo.Status)"
+                        Write-LogMessage "$serviceName ainda apresenta problemas apos reinicio: $($newServiceInfo.Status)"
                         Write-ActionLog -ServiceName $serviceName -Action "VERIFICAR_POS_REINICIO" -Status "AVISO" -Details "Status: $($newServiceInfo.Status)"
                     }
                 }
@@ -510,7 +478,7 @@ function Start-ServiceMonitoring {
             }
         }
         else {
-            Write-LogMessage "$serviceName está funcionando normalmente ($($serviceInfo.Status))"
+            Write-LogMessage "$serviceName esta funcionando normalmente ($($serviceInfo.Status))"
             if ($Script:VERBOSE_MODE) {
                 Write-ActionLog -ServiceName $serviceName -Action "VERIFICAR_STATUS" -Status "OK" -Details "Status: $($serviceInfo.Status)"
             }
@@ -518,51 +486,49 @@ function Start-ServiceMonitoring {
     }
     
     if ($restartCount -gt 0) {
-        Write-LogMessage "📊 Resumo: $restartCount de $totalServices serviços foram $(if($Script:TEST_MODE){'marcados para reinício'}else{'reiniciados'})"
-        Write-ActionLog -ServiceName "SISTEMA" -Action "RESUMO_MONITORAMENTO" -Status "INFO" -Details "$restartCount de $totalServices serviços processados"
+        Write-LogMessage "Resumo: $restartCount de $totalServices servicos foram $(if($Script:TEST_MODE){'marcados para reinicio'}else{'reiniciados'})"
+        Write-ActionLog -ServiceName "SISTEMA" -Action "RESUMO_MONITORAMENTO" -Status "INFO" -Details "$restartCount de $totalServices servicos processados"
         
-        # Se muitos serviços foram reiniciados, pode indicar problema sistêmico
+        # Se muitos servicos foram reiniciados, pode indicar problema sistemico
         if ($restartCount -gt 3) {
-            Write-LogMessage "ATENÇÃO: Muitos serviços foram reiniciados. Verifique logs do sistema e recursos"
-            Write-ActionLog -ServiceName "SISTEMA" -Action "ALERTA_SISTEMICO" -Status "AVISO" -Details "Muitos serviços reiniciados ($restartCount) - possível problema sistêmico"
+            Write-LogMessage "ATENCAO: Muitos servicos foram reiniciados. Verifique logs do sistema e recursos"
+            Write-ActionLog -ServiceName "SISTEMA" -Action "ALERTA_SISTEMICO" -Status "AVISO" -Details "Muitos servicos reiniciados ($restartCount) - possivel problema sistemico"
         }
     }
     else {
-        Write-LogMessage "Todos os serviços estão funcionando corretamente"
-        Write-ActionLog -ServiceName "SISTEMA" -Action "MONITORAMENTO_COMPLETO" -Status "SUCESSO" -Details "Todos os $totalServices serviços funcionando normalmente"
+        Write-LogMessage "Todos os servicos estao funcionando corretamente"
+        Write-ActionLog -ServiceName "SISTEMA" -Action "MONITORAMENTO_COMPLETO" -Status "SUCESSO" -Details "Todos os $totalServices servicos funcionando normalmente"
     }
 }
 
-# Função para mostrar uso do script
+# Funcao para mostrar uso do script
 function Show-Usage {
-    Write-Host @"
-Uso: .\protheus_monitor.ps1 [opções]
-
-Opções:
-  -Help           Mostra esta ajuda
-  -Verbose        Modo verboso (mais detalhes no log)
-  -Test           Modo teste (não reinicia serviços, apenas verifica)
-  -Status         Mostra apenas o status atual dos serviços
-
-Exemplos:
-  .\protheus_monitor.ps1                    # Executa verificação normal
-  .\protheus_monitor.ps1 -Test             # Executa em modo teste
-  .\protheus_monitor.ps1 -Status           # Mostra apenas status
-  .\protheus_monitor.ps1 -Verbose          # Modo detalhado
-
-Logs:
-  - Log principal: C:\Logs\protheus_monitor.log
-  - Ações detalhadas são registradas com timestamp e status
-
-Requisitos:
-  - Execute como Administrador
-  - PowerShell 5.1 ou superior
-"@
+    Write-Host "Uso: .\protheus_monitor.ps1 [opcoes]"
+    Write-Host ""
+    Write-Host "Opcoes:"
+    Write-Host "  -Help           Mostra esta ajuda"
+    Write-Host "  -Verbose        Modo verboso (mais detalhes no log)"
+    Write-Host "  -Test           Modo teste (nao reinicia servicos, apenas verifica)"
+    Write-Host "  -Status         Mostra apenas o status atual dos servicos"
+    Write-Host ""
+    Write-Host "Exemplos:"
+    Write-Host "  .\protheus_monitor.ps1                    # Executa verificacao normal"
+    Write-Host "  .\protheus_monitor.ps1 -Test             # Executa em modo teste"
+    Write-Host "  .\protheus_monitor.ps1 -Status           # Mostra apenas status"
+    Write-Host "  .\protheus_monitor.ps1 -Verbose          # Modo detalhado"
+    Write-Host ""
+    Write-Host "Logs:"
+    Write-Host "  Log principal: C:\Logs\protheus_monitor.log"
+    Write-Host "  Acoes detalhadas sao registradas com timestamp e status"
+    Write-Host ""
+    Write-Host "Requisitos:"
+    Write-Host "  Execute como Administrador"
+    Write-Host "  PowerShell 5.1 ou superior"
 }
 
-# Função para mostrar apenas status
+# Funcao para mostrar apenas status
 function Show-ServiceStatus {
-    Write-Host "Status dos Serviços Protheus:"
+    Write-Host "Status dos Servicos Protheus:"
     Write-Host "=============================="
     
     foreach ($serviceName in $Script:SERVICES) {
@@ -577,7 +543,7 @@ function Show-ServiceStatus {
     }
 }
 
-# Função principal
+# Funcao principal
 function Main {
     # Verifica se deve mostrar ajuda
     if ($Help) {
@@ -591,28 +557,28 @@ function Main {
         exit 0
     }
     
-    # Verifica se há manutenção manual em andamento
+    # Verifica se ha manutencao manual em andamento
     if (Test-ManualMaintenance) {
-        Write-LogMessage "Manutenção manual em andamento - Script pausado"
+        Write-LogMessage "Manutencao manual em andamento - Script pausado"
         exit 0
     }
     
-    # Verifica se está na janela de manutenção programada
+    # Verifica se esta na janela de manutencao programada
     if (Test-MaintenanceWindow) {
         $currentTime = Get-Date -Format "HH:mm"
-        Write-LogMessage "Janela de manutenção programada ativa (Sábado $currentTime) - Script pausado"
+        Write-LogMessage "Janela de manutencao programada ativa (Sabado $currentTime) - Script pausado"
         exit 0
     }
     
     # Configura logging
     Initialize-Logging
     
-    # Log do início da execução
+    # Log do inicio da execucao
     Write-LogMessage "=========================================="
-    Write-LogMessage "Iniciando monitoramento dos serviços Protheus"
+    Write-LogMessage "Iniciando monitoramento dos servicos Protheus"
     
     if ($Script:TEST_MODE) {
-        Write-LogMessage "MODO TESTE: Serviços não serão reiniciados"
+        Write-LogMessage "MODO TESTE: Servicos nao serao reiniciados"
     }
     
     # Verifica conectividade
@@ -621,14 +587,14 @@ function Main {
     # Executa monitoramento
     Start-ServiceMonitoring
     
-    Write-LogMessage "Monitoramento concluído"
+    Write-LogMessage "Monitoramento concluido"
     Write-LogMessage "=========================================="
 }
 
-# Verifica se está sendo executado como administrador
+# Verifica se esta sendo executado como administrador
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Error "Este script deve ser executado como Administrador!"
-    Write-Host "Clique com o botão direito no PowerShell e selecione 'Executar como administrador'"
+    Write-Host "Clique com o botao direito no PowerShell e selecione 'Executar como administrador'"
     exit 1
 }
 
