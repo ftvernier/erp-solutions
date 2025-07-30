@@ -56,21 +56,26 @@ async def get_protheus_user_by_email(email: str) -> Optional[dict]:
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{config.PROTHEUS_BASE_URL}/users",
-                params={"foundBy": "MAIL", "count": 1},
+                params={
+                    "foundBy": "MAIL",
+                    "count": 50
+                },
                 auth=(config.PROTHEUS_USER, config.PROTHEUS_PASS),
                 timeout=30.0
             )
+            
             if response.status_code == 200:
                 data = response.json()
-                users = data.get("Resources", data if isinstance(data, list) else [])
-                if not isinstance(users, list):
-                    users = [data] if data else []
+                # Estrutura correta conforme API SCIM
+                users = data.get("resources", [])
+                
                 for user in users:
                     emails = user.get("emails", [])
                     for user_email in emails:
                         if user_email.get("value", "").lower() == email.lower():
                             return user
             return None
+            
     except Exception as e:
         print(f"Erro ao consultar Protheus: {e}")
         return None
@@ -85,6 +90,7 @@ async def update_protheus_password(user_id: str, new_password: str) -> bool:
             "password": new_password,
             "urn:scim:schemas:extension:totvs:2.0:User/forceChangePassword": False
         }
+        
         async with httpx.AsyncClient() as client:
             response = await client.put(
                 f"{config.PROTHEUS_BASE_URL}/users/{user_id}",
@@ -93,10 +99,12 @@ async def update_protheus_password(user_id: str, new_password: str) -> bool:
                 timeout=30.0,
                 headers={"Content-Type": "application/json", "Accept": "application/json"}
             )
+            
             if response.status_code == 200:
                 result = response.json()
                 return result is True or result == "true"
             return False
+            
     except Exception as e:
         print(f"Erro ao atualizar senha no Protheus: {e}")
         return False
@@ -107,6 +115,7 @@ def send_email(to_email: str, code: str) -> bool:
         msg['From'] = config.SMTP_USER
         msg['To'] = to_email
         msg['Subject'] = "Código de Verificação - Reset Senha Protheus"
+        
         body = f"""
         <html>
         <body>
@@ -120,13 +129,17 @@ def send_email(to_email: str, code: str) -> bool:
         </body>
         </html>
         """
+        
         msg.attach(MIMEText(body, 'html'))
+        
         server = smtplib.SMTP(config.SMTP_SERVER, config.SMTP_PORT)
         server.starttls()
         server.login(config.SMTP_USER, config.SMTP_PASS)
         server.send_message(msg)
         server.quit()
+        
         return True
+        
     except Exception as e:
         print(f"Erro ao enviar email: {e}")
         return False
