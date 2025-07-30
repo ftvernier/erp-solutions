@@ -30,7 +30,8 @@ Um script PowerShell robusto para monitoramento automático e reinício de servi
 - **Janela de Manutenção**: Pausa automática durante períodos de manutenção programada
 - **Manutenção Manual**: Suporte para pausar o monitoramento durante intervenções manuais
 - **Modo Teste**: Execução sem alterações reais para validação
-- **Interface Colorida**: Output visual com cores para facilitar o acompanhamento
+- **Interface Limpa**: Output sem caracteres especiais para máxima compatibilidade
+- **Compatibilidade Total**: Funciona em diferentes versões do PowerShell e Windows
 
 ## 📋 Pré-requisitos
 
@@ -86,6 +87,8 @@ Por padrão, os logs são salvos em `C:\Logs\protheus_monitor.log`. Para alterar
 $Script:LOG_FILE = "D:\MeuCaminho\protheus_monitor.log"
 ```
 
+**Importante**: O script remove acentos e caracteres especiais para máxima compatibilidade com diferentes versões do PowerShell e configurações de sistema.
+
 ## 🖥️ Como Usar
 
 ### Sintaxe Básica
@@ -97,7 +100,24 @@ $Script:LOG_FILE = "D:\MeuCaminho\protheus_monitor.log"
 ### Opções Disponíveis
 
 | Parâmetro | Descrição |
-|-----------|-----------|
+|## 🎯 Novidades desta Versão
+
+### ✅ **Estabilidade Máxima**
+- **Sintaxe Limpa**: Removidos todos os caracteres especiais que poderiam causar problemas de parsing
+- **Compatibilidade Total**: Funciona em qualquer versão do PowerShell 5.1+ e configuração de sistema
+- **Encoding Seguro**: Sem acentos ou símbolos que causem problemas de codificação
+
+### ✅ **Robustez Aprimorada**
+- **Tratamento de Erros**: Blocos try-catch otimizados e testados
+- **Logs Simplificados**: Mensagens claras sem caracteres especiais
+- **Execução Confiável**: Testado em múltiplos ambientes Windows
+
+### ✅ **Facilidade de Uso**
+- **Setup Simples**: Configuração direta e sem complicações
+- **Debugging Fácil**: Logs limpos facilitam identificação de problemas
+- **Manutenção Simples**: Código claro e bem estruturado
+
+-----------|-----------|
 | `-Help` | Exibe ajuda e instruções de uso |
 | `-Verbose` | Ativa modo verboso com logs detalhados |
 | `-Test` | Modo teste - não reinicia serviços, apenas simula |
@@ -160,16 +180,16 @@ O script utiliza um **sistema duplo de logging**:
 #### 1. Log Principal
 Mensagens gerais de execução e status:
 ```
-[2025-07-30 14:30:15] 🚀 Iniciando monitoramento dos serviços Protheus
+[2025-07-30 14:30:15] Iniciando monitoramento dos servicos Protheus
 [2025-07-30 14:30:16] Verificando: ProtheusAppServer01
-[2025-07-30 14:30:17] ✅ ProtheusAppServer01 está funcionando normalmente (Running)
+[2025-07-30 14:30:17] ProtheusAppServer01 esta funcionando normalmente (Running)
 ```
 
 #### 2. Log de Ações Detalhadas
 Registro específico de cada ação executada:
 ```
-[2025-07-30 14:30:18] [SERVIDOR01] AÇÃO: DETECTAR_PROBLEMA | SERVIÇO: ProtheusAppServer03 | STATUS: AVISO | DETALHES: Estado problemático: Stopped
-[2025-07-30 14:30:21] [SERVIDOR01] AÇÃO: REINICIAR_SERVICO | SERVIÇO: ProtheusAppServer03 | STATUS: SUCESSO | DETALHES: Estado problemático: Stopped
+[2025-07-30 14:30:18] [SERVIDOR01] ACAO: DETECTAR_PROBLEMA | SERVICO: ProtheusAppServer03 | STATUS: AVISO | DETALHES: Estado problematico: Stopped
+[2025-07-30 14:30:21] [SERVIDOR01] ACAO: REINICIAR_SERVICO | SERVICO: ProtheusAppServer03 | STATUS: SUCESSO | DETALHES: Estado problematico: Stopped
 ```
 
 ### Tipos de Ações Registradas
@@ -192,6 +212,7 @@ Registro específico de cada ação executada:
 | `FALHA` | 🔴 Vermelho | Operação falhou |
 | `AVISO` | 🟡 Amarelo | Situação que requer atenção |
 | `INFO` | ⚪ Branco | Informação geral |
+| `OK` | 🟢 Verde | Status normal em modo verbose |
 
 ### Localização dos Logs
 
@@ -235,7 +256,7 @@ New-Item "$env:TEMP\protheus_manual_maintenance" -ItemType File
 .\protheus_monitor.ps1
 
 # Output esperado:
-# ✅ Todos os serviços estão funcionando corretamente
+# Todos os servicos estao funcionando corretamente
 ```
 
 ### Cenário 2: Detecção de Problema
@@ -244,8 +265,8 @@ New-Item "$env:TEMP\protheus_manual_maintenance" -ItemType File
 .\protheus_monitor.ps1
 
 # Output quando há problemas:
-# ⚠️ ProtheusAppServer03 precisa ser reiniciado: Estado problemático: Stopped
-# ✅ ProtheusAppServer03 reiniciado com sucesso
+# ProtheusAppServer03 precisa ser reiniciado: Estado problematico: Stopped
+# Servico ProtheusAppServer03 reiniciado com sucesso
 ```
 
 ### Cenário 3: Modo Teste
@@ -254,7 +275,7 @@ New-Item "$env:TEMP\protheus_manual_maintenance" -ItemType File
 .\protheus_monitor.ps1 -Test
 
 # Output em modo teste:
-# 🧪 MODO TESTE: ProtheusAppServer02 seria reiniciado por: Serviço travado/não responsivo
+# MODO TESTE: ProtheusAppServer02 seria reiniciado por: Servico travado/nao responsivo
 ```
 
 ### Cenário 4: Verificação de Status
@@ -263,7 +284,7 @@ New-Item "$env:TEMP\protheus_manual_maintenance" -ItemType File
 .\protheus_monitor.ps1 -Status
 
 # Output:
-# Status dos Serviços Protheus:
+# Status dos Servicos Protheus:
 # ==============================
 # ProtheusAppServer01        Status: Running         StartType: Automatic
 # ProtheusAppServer02        Status: Stopped         StartType: Manual
@@ -301,6 +322,15 @@ Para ambientes com subsistema Linux ou ferramentas CRON:
 **Solução**:
 ```powershell
 Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+### Problema: Caracteres Especiais no Console
+
+**Erro**: Símbolos estranhos ou encoding incorreto
+
+**Solução**: O script foi otimizado para evitar caracteres especiais, mas se ainda houver problemas:
+```powershell
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 ```
 
 ### Problema: Permissões Insuficientes
@@ -424,6 +454,7 @@ Use as [Issues do GitHub](https://github.com/seu-usuario/protheus-monitor/issues
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
+---
 
 ⭐ **Se este projeto foi útil, considere dar uma estrela no GitHub!**
 
