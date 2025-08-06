@@ -117,6 +117,7 @@ git push origin feature/nova-funcionalidade
 ### Conecte-se Comigo
 - 💼 **LinkedIn**: [Fernando Vernier](https://www.linkedin.com/in/fernando-v-10758522/)
 - 📧 **Email**: fernando.vernier@hotmail.com
+- 💵 **PIX**: Se desejar contribuir com o nosso projeto a chave pix é: fernandovernier@gmail.com
 
 ## 📄 Licença
 
