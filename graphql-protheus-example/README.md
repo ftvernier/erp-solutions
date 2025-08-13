@@ -273,9 +273,10 @@ Ajuste os resolvers para corresponder à estrutura das suas APIs REST existentes
 
 Este projeto está sob a licença MIT. Veja o arquivo `LICENSE` para mais detalhes.
 
-## 👨‍💻 **Autor**
-
-Criado pela **Comunidade Protheus** para demonstrar tecnologias modernas no ecossistema TOTVS.
+### Conecte-se Comigo
+- 💼 **LinkedIn**: [Fernando Vernier](https://www.linkedin.com/in/fernando-v-10758522/)
+- 📧 **Email**: fernando.vernier@hotmail.com
+- 💵 **PIX**: Se desejar contribuir com o nosso projeto a chave pix é: fernandovernier@gmail.com
 
 ---
 
