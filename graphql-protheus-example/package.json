@@ -16,7 +16,7 @@
     "rest",
     "apollo"
   ],
-  "author": "Comunidade Protheus",
+  "author": "Fernando Vernier",
   "license": "MIT",
   "dependencies": {
     "apollo-server-express": "^3.12.0",
