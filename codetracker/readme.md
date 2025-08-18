@@ -179,7 +179,7 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para de
 
 **Fernando Vernier**
 - 💼 LinkedIn: [fernando-vernier]([https://linkedin.com/in/fernando-vernier](https://www.linkedin.com/in/fernando-v-10758522/))
-- 🐙 GitHub: [@github.com/ftvernier/erp-solutions](github.com/ftvernier/erp-solutions)
+- 🐙 GitHub: [github.com/ftvernier/erp-solutions](github.com/ftvernier/erp-solutions)
 - 📧 Email: fernando.vernier@hotmail.com
 
 ## ⭐ Apoie o Projeto
