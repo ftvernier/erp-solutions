@@ -170,12 +170,21 @@ Contribuições são bem-vindas! Veja como ajudar:
 4. 📤 Push para a branch (`git push origin feature/AmazingFeature`)
 5. 🔀 Abra um Pull Request
 
+## 📝 Roadmap
+
+- [ ] 🌐 Interface web para visualização
+- [ ] 📊 Dashboard com gráficos de uso
+- [ ] 🔄 Integração CI/CD
+- [ ] 📧 Alertas automáticos
+- [ ] 🧠 ML para sugestões de refatoração
 
 ## 📄 Licença
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para detalhes.
 
 ## 👨‍💻 Autor
+
+**Fernando Vernier**
 
 ### Conecte-se Comigo
 - 💼 **LinkedIn**: [Fernando Vernier](https://www.linkedin.com/in/fernando-v-10758522/)
