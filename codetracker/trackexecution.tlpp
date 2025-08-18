@@ -1,0 +1,208 @@
+#include "tlpp-core.th"
+#include "protheus.ch"
+
+namespace codetracker
+
+/*/{Protheus.doc} TrackExecution
+Registra execução de rotinas para análise de uso posterior
+@type function
+@version 1.0
+@author Fernando Vernier
+@since 18/08/2025
+@param cProgram, character, Nome do programa/rotina principal
+@param cFunction, character, Nome da função específica executada
+@return variant, Sempre retorna NIL
+/*/
+user function TrackExecution(cProgram, cFunction)
+    local cUser := RetCodUsr()
+    local cUserName := UsrRetName(cUser)
+    local cAlias := Alias()
+    
+    default cProgram := ""
+    default cFunction := ""
+    
+    // Validações básicas
+    if Empty(cProgram)
+        return
+    endif
+    
+    // Verifica se a tabela existe, se não existir, cria
+    if !TCCanOpen(RetSqlName("Z99"))
+        CreateTrackerTable()
+    endif
+    
+    // Posiciona na área da tabela de tracking
+    DbSelectArea("Z99")
+    
+    // Insere o registro usando RecLock
+    if RecLock("Z99", .T.)
+        Z99->Z99_FILIAL := xFilial("Z99")
+        Z99->Z99_ROTINA := Upper(AllTrim(cProgram))
+        Z99->Z99_FUNCAO := Upper(AllTrim(cFunction))
+        Z99->Z99_DATA   := Date()
+        Z99->Z99_HORA   := Time()
+        Z99->Z99_USER   := cUser
+        Z99->Z99_NOME   := AllTrim(cUserName)
+        MsUnlock()
+    endif
+    
+    // Restaura área anterior se havia uma
+    if !Empty(cAlias)
+        DbSelectArea(cAlias)
+    endif
+
+return
+
+/*/{Protheus.doc} CreateTrackerTable
+Cria tabela Z99 para rastreamento de execução de códigos
+@type function
+@version 1.0
+@author Fernando Vernier
+@since 18/08/2025
+@return logical, Retorna .T. se criou com sucesso, .F. caso contrário
+/*/
+static function CreateTrackerTable()
+    local aStruct := {}
+    local lRet := .F.
+    
+    // Define a estrutura da tabela Z99
+    aAdd(aStruct, {"Z99_FILIAL", "C", 02, 0})
+    aAdd(aStruct, {"Z99_ROTINA", "C", 15, 0})
+    aAdd(aStruct, {"Z99_FUNCAO", "C", 30, 0})
+    aAdd(aStruct, {"Z99_DATA",   "D", 08, 0})
+    aAdd(aStruct, {"Z99_HORA",   "C", 08, 0})
+    aAdd(aStruct, {"Z99_USER",   "C", 06, 0})
+    aAdd(aStruct, {"Z99_NOME",   "C", 40, 0})
+    
+    // Cria a tabela usando FWDBCreate
+    lRet := FWDBCreate("Z99", aStruct, "TOPCONN", .T.)
+    
+return lRet
+
+/*/{Protheus.doc} GetUsageReport
+Gera relatório de uso das rotinas em formato texto
+@type function
+@version 1.0
+@author Fernando Vernier
+@since 18/08/2025
+@param dDataIni, date, Data inicial do período para análise
+@param dDataFim, date, Data final do período para análise
+@return character, Relatório formatado em texto
+/*/
+user function GetUsageReport(dDataIni, dDataFim)
+    local cQuery := ""
+    local cAlias := GetNextAlias()
+    local cReport := ""
+    local nTotal := 0
+    
+    default dDataIni := CToD("01/01/1900")
+    default dDataFim := Date() + 365
+    
+    // Query para buscar estatísticas de uso
+    cQuery := "SELECT "
+    cQuery += "  Z99_ROTINA, "
+    cQuery += "  Z99_FUNCAO, " 
+    cQuery += "  COUNT(*) AS TOTAL_EXEC, "
+    cQuery += "  COUNT(DISTINCT Z99_USER) AS USERS_DISTINTOS, "
+    cQuery += "  MAX(Z99_DATA) AS ULTIMA_EXEC "
+    cQuery += "FROM " + RetSqlName("Z99") + " "
+    cQuery += "WHERE D_E_L_E_T_ = ' ' "
+    cQuery += "  AND Z99_FILIAL = '" + xFilial("Z99") + "' "
+    cQuery += "  AND Z99_DATA BETWEEN '" + DToS(dDataIni) + "' AND '" + DToS(dDataFim) + "' "
+    cQuery += "GROUP BY Z99_ROTINA, Z99_FUNCAO "
+    cQuery += "ORDER BY TOTAL_EXEC DESC, Z99_ROTINA, Z99_FUNCAO"
+    
+    cQuery := ChangeQuery(cQuery)
+    
+    DbUseArea(.T., "TOPCONN", TCGenQry(,, cQuery), cAlias, .F., .T.)
+    
+    // Monta o relatório
+    cReport := "=== CODE USAGE TRACKER - RELATORIO DE USO ===" + CRLF
+    cReport += "Periodo: " + DToC(dDataIni) + " ate " + DToC(dDataFim) + CRLF
+    cReport += "Gerado em: " + DToC(Date()) + " as " + Time() + CRLF
+    cReport += Replicate("=", 70) + CRLF + CRLF
+    
+    if (cAlias)->(!Eof())
+        
+        cReport += PadR("ROTINA", 15) + " | "
+        cReport += PadR("FUNCAO", 25) + " | "  
+        cReport += PadR("EXECUCOES", 10) + " | "
+        cReport += PadR("USUARIOS", 8) + " | "
+        cReport += "ULTIMA EXECUCAO" + CRLF
+        cReport += Replicate("-", 70) + CRLF
+        
+        while (cAlias)->(!Eof())
+            
+            cReport += PadR((cAlias)->Z99_ROTINA, 15) + " | "
+            cReport += PadR((cAlias)->Z99_FUNCAO, 25) + " | "
+            cReport += PadL(cValToChar((cAlias)->TOTAL_EXEC), 10) + " | "
+            cReport += PadL(cValToChar((cAlias)->USERS_DISTINTOS), 8) + " | "
+            cReport += SToD((cAlias)->ULTIMA_EXEC) + CRLF
+            
+            nTotal += (cAlias)->TOTAL_EXEC
+            
+            (cAlias)->(DbSkip())
+        end
+        
+        cReport += Replicate("-", 70) + CRLF
+        cReport += "TOTAL DE EXECUCOES: " + cValToChar(nTotal) + CRLF
+        
+    else
+        cReport += "Nenhuma execucao registrada no periodo informado." + CRLF
+    endif
+    
+    (cAlias)->(DbCloseArea())
+    
+    cReport += CRLF + "=== FIM DO RELATORIO ===" + CRLF
+
+return cReport
+
+/*/{Protheus.doc} CleanOldRecords
+Remove registros antigos da tabela Z99 para manter performance
+@type function
+@version 1.0
+@author Fernando Vernier
+@since 18/08/2025
+@param nDias, numeric, Número de dias para manter na base (padrão 365)
+@return numeric, Quantidade de registros removidos
+/*/
+user function CleanOldRecords(nDias)
+    local cQuery := ""
+    local dDataLimite
+    local nRemovidos := 0
+    local cAlias := GetNextAlias()
+    
+    default nDias := 365
+    
+    // Calcula data limite
+    dDataLimite := Date() - nDias
+    
+    // Conta quantos registros serão removidos
+    cQuery := "SELECT COUNT(*) AS TOTAL "
+    cQuery += "FROM " + RetSqlName("Z99") + " "
+    cQuery += "WHERE D_E_L_E_T_ = ' ' "
+    cQuery += "  AND Z99_FILIAL = '" + xFilial("Z99") + "' "
+    cQuery += "  AND Z99_DATA < '" + DToS(dDataLimite) + "'"
+    
+    cQuery := ChangeQuery(cQuery)
+    DbUseArea(.T., "TOPCONN", TCGenQry(,, cQuery), cAlias, .F., .T.)
+    
+    if (cAlias)->(!Eof())
+        nRemovidos := (cAlias)->TOTAL
+    endif
+    
+    (cAlias)->(DbCloseArea())
+    
+    if nRemovidos > 0
+        
+        // Remove os registros antigos
+        cQuery := "DELETE FROM " + RetSqlName("Z99") + " "
+        cQuery += "WHERE D_E_L_E_T_ = ' ' "
+        cQuery += "  AND Z99_FILIAL = '" + xFilial("Z99") + "' "
+        cQuery += "  AND Z99_DATA < '" + DToS(dDataLimite) + "'"
+        
+        TCSqlExec(cQuery)
+        
+    endif
+
+return nRemovidos
