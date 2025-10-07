@@ -158,25 +158,14 @@ Este projeto implementa um pipeline CI/CD completo para deploys de código Proth
 
 ### Serviços Systemd
 
-Os seguintes serviços devem estar configurados no systemd:
+Os serviços abaixo são um exemplo e devem estar configurados no systemd:
 
 ```
 appserver_broker_rest.service
 appserver_broker_webapp.service
 appserver_portal_01.service
 appserver_compilar.service
-appserver_exclusivo.service
 appserver_slave_01.service até appserver_slave_10.service
-appserver_tss.service
-appserver_wf_01_faturamento.service
-appserver_wf_02_compras.service
-appserver_wf_03_financeiro.service
-appserver_wf_05_inncash.service
-appserver_wf_06_logfat.service
-appserver_wf_07_transmite.service
-appserver_wsrest_01.service até appserver_wsrest_04.service
-smart-view-agent.service
-monitorar_webapp.service
 ```
 
 ### GitHub
