@@ -4,24 +4,26 @@ Sistema de deploy automatizado para aplicações Protheus/TOTVS via GitHub Actio
 
 ## 📋 Índice
 
-- [Visão Geral](#-visao-geral)
+- [Visao Geral](#-visao-geral)
 - [Funcionalidades](#-funcionalidades)
 - [Arquitetura](#-arquitetura)
-- [Pré-requisitos](#-pre-requisitos)
-- [Instalação](#-instalacao)
-- [Configuração](#-configuracao)
+- [Pre-requisitos](#-pre-requisitos)
+- [Instalacao](#-instalacao)
+- [Configuracao](#-configuracao)
 - [Uso](#-uso)
 - [Fluxo de Deploy](#-fluxo-de-deploy)
 - [Scripts](#-scripts)
 - [Troubleshooting](#-troubleshooting)
 - [Rollback](#-rollback)
 - [Logs e Monitoramento](#-logs-e-monitoramento)
-- [Segurança](#-seguranca)
-- [Alertas e Notificações](#-alertas-e-notificacoes)
-- [Métricas e Estatísticas](#-metricas-e-estatisticas)
+- [Seguranca](#-seguranca)
+- [Alertas e Notificacoes](#-alertas-e-notificacoes)
+- [Metricas e Estatisticas](#-metricas-e-estatisticas)
 - [Contribuindo](#-contribuindo)
 - [FAQ](#-faq-perguntas-frequentes)
 - [Suporte](#-suporte)
+- [Licenca](#-licenca)
+- [Historico de Versoes](#-historico-de-versoes)
 
 ## 🎯 Visao Geral
 
@@ -165,7 +167,7 @@ Este projeto implementa um pipeline CI/CD completo para deploys de código Proth
 
 ### Serviços Systemd
 
-Abaixo alguns serviços de exemplo que devem constar no Systemd, configure os seus serviços conforme necessidade.
+Os serviços abaixo são exemplos, configure conforme o seu ambiente.
 
 ```
 appserver_broker_rest.service
@@ -174,6 +176,11 @@ appserver_portal_01.service
 appserver_compilar.service
 appserver_exclusivo.service
 appserver_slave_01.service até appserver_slave_10.service
+appserver_tss.service
+appserver_wf_01_faturamento.service
+appserver_wf_02_compras.service
+appserver_wsrest_01.service até appserver_wsrest_04.service
+smart-view-agent.service
 ```
 
 ### GitHub
