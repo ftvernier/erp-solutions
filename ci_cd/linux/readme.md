@@ -4,19 +4,26 @@ Sistema de deploy automatizado para aplicações Protheus/TOTVS via GitHub Actio
 
 ## 📋 Índice
 
-- [Visão Geral](#visão-geral)
-- [Funcionalidades](#funcionalidades)
-- [Arquitetura](#arquitetura)
-- [Pré-requisitos](#pré-requisitos)
-- [Instalação](#instalação)
-- [Configuração](#configuração)
-- [Uso](#uso)
-- [Fluxo de Deploy](#fluxo-de-deploy)
-- [Scripts](#scripts)
-- [Troubleshooting](#troubleshooting)
-- [Rollback](#rollback)
+- [Visão Geral](#-visao-geral)
+- [Funcionalidades](#-funcionalidades)
+- [Arquitetura](#-arquitetura)
+- [Pré-requisitos](#-pre-requisitos)
+- [Instalação](#-instalacao)
+- [Configuração](#-configuracao)
+- [Uso](#-uso)
+- [Fluxo de Deploy](#-fluxo-de-deploy)
+- [Scripts](#-scripts)
+- [Troubleshooting](#-troubleshooting)
+- [Rollback](#-rollback)
+- [Logs e Monitoramento](#-logs-e-monitoramento)
+- [Segurança](#-seguranca)
+- [Alertas e Notificações](#-alertas-e-notificacoes)
+- [Métricas e Estatísticas](#-metricas-e-estatisticas)
+- [Contribuindo](#-contribuindo)
+- [FAQ](#-faq-perguntas-frequentes)
+- [Suporte](#-suporte)
 
-## 🎯 Visão Geral
+## 🎯 Visao Geral
 
 Este projeto implementa um pipeline CI/CD completo para deploys de código Protheus em ambiente de produção, executando automaticamente quando Pull Requests são mergeados na branch `main`.
 
@@ -111,7 +118,7 @@ Este projeto implementa um pipeline CI/CD completo para deploys de código Proth
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## 📦 Pré-requisitos
+## 📦 Pre-requisitos
 
 ### Servidor
 
@@ -158,13 +165,14 @@ Este projeto implementa um pipeline CI/CD completo para deploys de código Proth
 
 ### Serviços Systemd
 
-Os serviços abaixo são um exemplo e devem estar configurados no systemd:
+Abaixo alguns serviços de exemplo que devem constar no Systemd, configure os seus serviços conforme necessidade.
 
 ```
 appserver_broker_rest.service
 appserver_broker_webapp.service
 appserver_portal_01.service
 appserver_compilar.service
+appserver_exclusivo.service
 appserver_slave_01.service até appserver_slave_10.service
 ```
 
@@ -174,7 +182,7 @@ appserver_slave_01.service até appserver_slave_10.service
 - Self-hosted runner configurado no servidor
 - Permissões configuradas no repositório
 
-## 🔧 Instalação
+## 🔧 Instalacao
 
 ### 1. Clonar o Repositório
 
@@ -401,7 +409,7 @@ github-runner ALL=(ALL) NOPASSWD: /usr/bin/pkill
 github-runner ALL=(ALL) NOPASSWD: /usr/bin/kill
 ```
 
-## ⚙️ Configuração
+## ⚙️ Configuracao
 
 ### Variáveis de Ambiente
 
@@ -944,7 +952,7 @@ ls -t /tmp/deploy_protheus_*.log | head -1 | xargs tail -100
 └── LICENSE
 ```
 
-## 🔐 Segurança
+## 🔐 Seguranca
 
 ### Boas Práticas
 
@@ -987,7 +995,7 @@ cd /opt/git_protheus/protheus
 git log --oneline --graph --all
 ```
 
-## 🚨 Alertas e Notificações
+## 🚨 Alertas e Notificacoes
 
 ### Comentários Automáticos no PR
 
@@ -1036,7 +1044,7 @@ Para integrar com Slack, Teams, ou outras ferramentas, você pode:
    # que foi removida, mas configurando para sua ferramenta
    ```
 
-## 📈 Métricas e Estatísticas
+## 📈 Metricas e Estatisticas
 
 ### Tempo Médio de Deploy
 
@@ -1178,11 +1186,11 @@ on:
 - [TOTVS Protheus TDN](https://tdn.totvs.com/)
 - [Systemd Documentation](https://www.freedesktop.org/software/systemd/man/)
 
-## 📄 Licença
+## 📄 Licenca
 
 Este projeto é de uso interno. Todos os direitos reservados.
 
-## 🏆 Histórico de Versões
+## 🏆 Historico de Versoes
 
 ### v1.0.0 (2024-01-07)
 - ✅ Deploy automatizado via GitHub Actions
