@@ -1,0 +1,178 @@
+
+name: Deploy Protheus Production
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+    # Garante que o workflow só dispare quando houver .prw/.tlpp (qualquer caixa)
+    paths:
+      - '**/*.[Pp][Rr][Ww]'
+      - '**/*.[Tt][Ll][Pp][Pp]'
+
+jobs:
+  deploy:
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    name: Deploy to Production
+    runs-on: self-hosted
+    if: github.event.pull_request.merged == true
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 1) Preferimos a API do GitHub para listar os arquivos do PR (100% fiel ao PR)
+      - name: Verificar arquivos alterados (API)
+        id: cf_api
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+
+            let files = [];
+            let page = 1;
+            while (true) {
+              const res = await github.rest.pulls.listFiles({
+                owner, repo, pull_number: pr.number, per_page: 100, page
+              });
+              if (res.data.length === 0) break;
+              for (const f of res.data) files.push(f.filename);
+              if (res.data.length < 100) break;
+              page++;
+            }
+
+            // case-insensitive e únicos
+            files = [...new Set(files)].filter(n => /\.(prw|tlpp)$/i.test(n));
+
+            core.info('Arquivos (API):\n' + (files.map(f => '  - ' + f).join('\n') || '  (nenhum)'));
+            core.setOutput('changed_files', files.join('\n'));
+            core.setOutput('has_changes', files.length ? 'true' : 'false');
+
+      # 2) Fallback robusto com git caso a API retorne vazio (squash/rebase, etc.)
+      - name: Verificar arquivos alterados (fallback git)
+        id: cf_git
+        if: steps.cf_api.outputs.has_changes != 'true'
+        shell: bash
+        run: |
+          echo "🔎 Fallback git..."
+          BASE_SHA="${{ github.event.pull_request.base.sha }}"
+          HEAD_SHA="${{ github.sha }}"
+          # tenta base x head
+          LIST="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" | grep -Ei '\.(prw|tlpp)$' | sort -u || true)"
+          if [ -z "$LIST" ]; then
+            echo "Fallback secundário: HEAD~1..HEAD"
+            LIST="$(git diff --name-only HEAD~1 HEAD | grep -Ei '\.(prw|tlpp)$' | sort -u || true)"
+          fi
+          echo "Arquivos (git):"
+          echo "${LIST}" | sed 's/^/  - /' || true
+
+          {
+            echo "changed_files<<EOF"
+            echo "${LIST}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ -z "$LIST" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 3) Escolhe a melhor fonte (API > git) e exporta para os próximos steps
+      - name: Consolidar lista de arquivos
+        id: cf
+        shell: bash
+        run: |
+          if [ "${{ steps.cf_api.outputs.has_changes }}" = "true" ]; then
+            SRC="API"
+            FILES="${{ steps.cf_api.outputs.changed_files }}"
+          else
+            SRC="git"
+            FILES="${{ steps.cf_git.outputs.changed_files }}"
+          fi
+
+          echo "Fonte escolhida: $SRC"
+          echo "Arquivos finais:"
+          echo "$FILES" | sed 's/^/  - /' || true
+
+          {
+            echo "changed_files<<EOF"
+            echo "$FILES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ -z "$FILES" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Executar Deploy
+        if: steps.cf.outputs.has_changes == 'true'
+        env:
+          SUDO: "sudo -n"
+          TIMEOUT_PARAR: "900"
+          TIMEOUT_INICIAR: "180"
+          TIMEOUT_EXCLUSIVO: "120"
+          CHANGED_FILES: ${{ steps.cf.outputs.changed_files }}
+          # Se quiser notificação Slack via script python:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        shell: bash
+        run: |
+          echo "🚀 Iniciando deploy do Protheus..."
+          echo "Arquivos que serão deployados:"
+          echo "${CHANGED_FILES}" | while read -r file; do
+            [ -n "$file" ] && echo "  - $file"
+          done
+
+          if [ ! -f "/totvs/scripts/deploy_protheus.py" ]; then
+            echo "❌ Script de deploy não encontrado em /totvs/scripts/deploy_protheus.py"
+            exit 1
+          fi
+
+          set -o pipefail
+          python3.12 /totvs/scripts/deploy_protheus.py 2>&1 | tee deploy_output.log
+          rc=${PIPESTATUS[0]}
+          if [ $rc -eq 0 ]; then
+            echo "✅ Deploy executado com sucesso!"
+          else
+            echo "❌ Deploy falhou! (rc=$rc)"
+            echo "=== ÚLTIMAS LINHAS DO LOG ==="
+            tail -50 deploy_output.log || true
+            exit 1
+          fi
+
+      - name: Exibir informações se não há arquivos para deploy
+        if: steps.cf.outputs.has_changes == 'false'
+        run: |
+          echo "ℹ️  Nenhum arquivo .prw/.tlpp foi alterado neste PR."
+          echo "Deploy cancelado automaticamente."
+
+      - name: Comentar resultado no PR
+        if: always() && github.event.pull_request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ok = "${{ job.status }}" === "success";
+            const ts = new Date().toLocaleString('pt-BR');
+            const body = ok
+              ? `## ✅ Deploy realizado com sucesso!\n\n**Timestamp:** ${ts}\n**Status:** Concluído com sucesso\n\nO deploy foi executado automaticamente após o merge do PR.`
+              : `## ❌ Deploy falhou!\n\n**Timestamp:** ${ts}\n**Status:** Falhou durante execução\n\nVerifique os logs da execução e considere rollback se necessário.`;
+            github.rest.issues.createComment({
+              issue_number: context.payload.pull_request.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            })
