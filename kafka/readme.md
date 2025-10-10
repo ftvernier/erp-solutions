@@ -454,11 +454,11 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 
 ## 👤 Autor
 
-**Seu Nome**
 
-- LinkedIn: [[Seu LinkedIn](https://www.linkedin.com/in/fernando-v-10758522/)](#)
-- GitHub: [@ftvernier](#)
-- Email: fernando.vernier@hotmail.com
+### Conecte-se Comigo
+- 💼 **LinkedIn**: [Fernando Vernier](https://www.linkedin.com/in/fernando-v-10758522/)
+- 📧 **Email**: fernando.vernier@hotmail.com
+- 💵 **PIX**: Se desejar contribuir com o nosso projeto a chave pix é: fernandovernier@gmail.com
 
 ---
 
