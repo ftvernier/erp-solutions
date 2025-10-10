@@ -8,7 +8,8 @@ Envia os dados da NF para o Apache Kafka via REST API
 @author Fernando Vernier
 @since 10/10/2025
 @version 1.0
-@see https://github.com/ftvernier/erp-solutions
+
+@see https://github.com/ftvernier/erp-solutions/tree/main/kafka
 /*/
 User Function M460FIM()
     Local aArea := GetArea()
@@ -29,37 +30,35 @@ Função que prepara e envia os dados da NF para o Kafka
 @type User Function
 @author Fernando Vernier
 @since 10/10/2025
+
 @param cNumNF, Character, Número da Nota Fiscal
 @param cSerie, Character, Série da Nota Fiscal
 @param cCliente, Character, Código do Cliente
 @param cLoja, Character, Loja do Cliente
+
 @return Logical, .T. se enviou com sucesso
 /*/
 User Function SENDKAFKA(cNumNF, cSerie, cCliente, cLoja)
     Local lRet := .T.
     Local oKafka := KafkaProducer():New()
     Local oNFData := JsonObject():New()
+    Local oCabec := JsonObject():New()
+    Local oMeta := JsonObject():New()
+    Local aItens := {}
+    Local oItem
     Local cJson := ""
     
-    // Monta o JSON com os dados da Nota Fiscal
-    oNFData['topic'] := 'protheus-notas-fiscais'
-    oNFData['key'] := cNumNF + cSerie
-    oNFData['data'] := JsonObject():New()
-    
     // Dados do Cabeçalho (SF2)
-    oNFData['data']['cabecalho'] := JsonObject():New()
-    oNFData['data']['cabecalho']['documento'] := AllTrim(SF2->F2_DOC)
-    oNFData['data']['cabecalho']['serie'] := AllTrim(SF2->F2_SERIE)
-    oNFData['data']['cabecalho']['cliente'] := AllTrim(SF2->F2_CLIENTE)
-    oNFData['data']['cabecalho']['loja'] := AllTrim(SF2->F2_LOJA)
-    oNFData['data']['cabecalho']['nomeCliente'] := AllTrim(Posicione("SA1", 1, xFilial("SA1") + cCliente + cLoja, "A1_NOME"))
-    oNFData['data']['cabecalho']['emissao'] := DtoC(SF2->F2_EMISSAO)
-    oNFData['data']['cabecalho']['valorTotal'] := SF2->F2_VALBRUT
-    oNFData['data']['cabecalho']['chaveNFe'] := AllTrim(SF2->F2_CHVNFE)
+    oCabec['documento'] := AllTrim(SF2->F2_DOC)
+    oCabec['serie'] := AllTrim(SF2->F2_SERIE)
+    oCabec['cliente'] := AllTrim(SF2->F2_CLIENTE)
+    oCabec['loja'] := AllTrim(SF2->F2_LOJA)
+    oCabec['nomeCliente'] := AllTrim(Posicione("SA1", 1, xFilial("SA1") + cCliente + cLoja, "A1_NOME"))
+    oCabec['emissao'] := DtoC(SF2->F2_EMISSAO)
+    oCabec['valorTotal'] := SF2->F2_VALBRUT
+    oCabec['chaveNFe'] := AllTrim(SF2->F2_CHVNFE)
     
     // Dados dos Itens (SD2)
-    oNFData['data']['itens'] := {}
-    
     SD2->(DbSetOrder(3)) // D2_FILIAL+D2_DOC+D2_SERIE+D2_CLIENTE+D2_LOJA
     If SD2->(DbSeek(xFilial("SD2") + cNumNF + cSerie + cCliente + cLoja))
         While SD2->(!Eof()) .And. SD2->D2_DOC == cNumNF .And. SD2->D2_SERIE == cSerie
@@ -74,18 +73,25 @@ User Function SENDKAFKA(cNumNF, cSerie, cCliente, cLoja)
             oItem['tes'] := AllTrim(SD2->D2_TES)
             oItem['cf'] := AllTrim(SD2->D2_CF)
             
-            aAdd(oNFData['data']['itens'], oItem)
+            aAdd(aItens, oItem)
             
             SD2->(DbSkip())
         EndDo
     EndIf
     
     // Adiciona metadados
-    oNFData['data']['metadata'] := JsonObject():New()
-    oNFData['data']['metadata']['empresa'] := cEmpAnt
-    oNFData['data']['metadata']['filial'] := cFilAnt
-    oNFData['data']['metadata']['dataHoraEnvio'] := FWTimeStamp(3) // ISO 8601
-    oNFData['data']['metadata']['usuario'] := __cUserID
+    oMeta['empresa'] := cEmpAnt
+    oMeta['filial'] := cFilAnt
+    oMeta['dataHoraEnvio'] := FWTimeStamp(3) // ISO 8601
+    oMeta['usuario'] := __cUserID
+    
+    // Monta estrutura final do JSON
+    oNFData['topic'] := 'protheus-notas-fiscais'
+    oNFData['key'] := AllTrim(cNumNF) + AllTrim(cSerie)
+    oNFData['data'] := JsonObject():New()
+    oNFData['data']['cabecalho'] := oCabec
+    oNFData['data']['itens'] := aItens
+    oNFData['data']['metadata'] := oMeta
     
     // Converte para string JSON
     cJson := oNFData:ToJson()
@@ -123,8 +129,8 @@ Class KafkaProducer
 EndClass
 
 Method New() Class KafkaProducer
-    ::cUrl := GetMV("MV_KAFKAURL",, "http://localhost:8082/topics/") // Kafka REST Proxy
-    ::nTimeOut := GetMV("MV_KAFKATO",, 120) // Timeout em segundos
+    ::cUrl := AllTrim(GetMV("MV_KAFKAURL",, "http://localhost:8082/topics/"))
+    ::nTimeOut := GetMV("MV_KAFKATO",, 120)
     ::cError := ""
 Return Self
 
@@ -132,33 +138,52 @@ Method Send(cJson) Class KafkaProducer
     Local lRet := .T.
     Local oRest := FWRest():New(::cUrl)
     Local cResponse := ""
-    Local oResponse
+    Local oResponse := JsonObject():New()
+    Local aHeader := {}
+    Local cParseError := ""
     
-    // Configura headers
-    oRest:setPath("protheus-notas-fiscais") // Nome do tópico
+    // Configura headers necessários para Kafka REST Proxy
+    aAdd(aHeader, "Content-Type: application/vnd.kafka.json.v2+json")
+    aAdd(aHeader, "Accept: application/vnd.kafka.v2+json")
+    
+    // Configura o caminho (tópico)
+    oRest:setPath("protheus-notas-fiscais")
+    
+    // Define o body do POST
     oRest:SetPostParams(cJson)
     
-    // Headers necessários para Kafka REST Proxy
-    oRest:SetHeader("Content-Type", "application/vnd.kafka.json.v2+json")
-    oRest:SetHeader("Accept", "application/vnd.kafka.v2+json")
-    
     // Envia POST
-    If oRest:Post()
+    If oRest:Post(aHeader)
         cResponse := oRest:GetResult()
-        oResponse := JsonObject():New()
-        oResponse:FromJson(cResponse)
         
-        If oResponse <> Nil .And. ValType(oResponse['offsets']) == "A"
-            ConOut("[KAFKA] Offset: " + cValToChar(oResponse['offsets'][1]['offset']))
-            lRet := .T.
+        // Tenta fazer parse da resposta
+        cParseError := oResponse:FromJson(cResponse)
+        
+        If Empty(cParseError)
+            // Verifica se tem o campo offsets (sucesso)
+            If oResponse:HasProperty('offsets') .And. ValType(oResponse['offsets']) == "A"
+                If Len(oResponse['offsets']) > 0
+                    ConOut("[KAFKA] Offset: " + cValToChar(oResponse['offsets'][1]['offset']))
+                    lRet := .T.
+                Else
+                    ::cError := "Resposta sem offsets"
+                    lRet := .F.
+                EndIf
+            Else
+                ::cError := "Resposta inválida do Kafka - campo offsets não encontrado"
+                lRet := .F.
+            EndIf
         Else
-            ::cError := "Resposta inválida do Kafka"
+            ::cError := "Erro ao fazer parse da resposta: " + cParseError
             lRet := .F.
         EndIf
     Else
-        ::cError := oRest:GetLastError()
+        ::cError := "Erro HTTP: " + oRest:GetLastError()
         lRet := .F.
     EndIf
+    
+    // Libera o objeto
+    FreeObj(oRest)
     
 Return lRet
 
@@ -169,14 +194,30 @@ Return ::cError
 Função para registrar logs de integração (opcional)
 
 @type User Function
+@author Fernando Vernier
+@since 10/10/2025
 @param cNumNF, Character, Número da NF
 @param cSerie, Character, Série
 @param cStatus, Character, Status (SUCCESS/ERROR)
 @param cMsg, Character, Mensagem
 /*/
 User Function LOGKAFKA(cNumNF, cSerie, cStatus, cMsg)
-    ConOut("[LOG KAFKA] " + cNumNF + "/" + cSerie + " - " + cStatus + " - " + cMsg)
+    Local cLog := "[LOG KAFKA] " + DtoC(Date()) + " " + Time() + " - "
+    
+    cLog += cNumNF + "/" + cSerie + " - " + cStatus + " - " + cMsg
+    
+    ConOut(cLog)
     
     // Aqui você pode implementar gravação em tabela customizada (ZZZ)
-    // Para o exemplo, apenas log no console
+    // Exemplo:
+    // RecLock("ZZZ", .T.)
+    // ZZZ->ZZZ_FILIAL := xFilial("ZZZ")
+    // ZZZ->ZZZ_DOC    := cNumNF
+    // ZZZ->ZZZ_SERIE  := cSerie
+    // ZZZ->ZZZ_STATUS := cStatus
+    // ZZZ->ZZZ_MSG    := cMsg
+    // ZZZ->ZZZ_DATA   := Date()
+    // ZZZ->ZZZ_HORA   := Time()
+    // MsUnlock()
+    
 Return
