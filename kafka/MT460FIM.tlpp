@@ -1,0 +1,186 @@
+#Include "Protheus.ch"
+#Include "RestFul.ch"
+
+/*/{Protheus.doc} M460FIM
+Ponto de Entrada executado após o faturamento da nota fiscal
+Envia os dados da NF para o Apache Kafka via REST API
+
+@type User Function
+@author Fernando Vernier
+@since 10/10/2025
+@version 1.0
+
+@see https://github.com/ftvernier/erp-solutions
+/*/
+User Function M460FIM()
+    Local aArea := GetArea()
+    Local cNumNF := SF2->F2_DOC
+    Local cSerie := SF2->F2_SERIE
+    Local cCliente := SF2->F2_CLIENTE
+    Local cLoja := SF2->F2_LOJA
+    
+    // Chama função para enviar ao Kafka
+    U_SENDKAFKA(cNumNF, cSerie, cCliente, cLoja)
+    
+    RestArea(aArea)
+Return
+
+/*/{Protheus.doc} U_SENDKAFKA
+Função que prepara e envia os dados da NF para o Kafka
+
+@type User Function
+@author Fernando Vernier
+@since 10/10/2025
+
+@param cNumNF, Character, Número da Nota Fiscal
+@param cSerie, Character, Série da Nota Fiscal
+@param cCliente, Character, Código do Cliente
+@param cLoja, Character, Loja do Cliente
+
+@return Logical, .T. se enviou com sucesso
+/*/
+User Function SENDKAFKA(cNumNF, cSerie, cCliente, cLoja)
+    Local lRet := .T.
+    Local oKafka := KafkaProducer():New()
+    Local oNFData := JsonObject():New()
+    Local cJson := ""
+    
+    // Monta o JSON com os dados da Nota Fiscal
+    oNFData['topic'] := 'protheus-notas-fiscais'
+    oNFData['key'] := cNumNF + cSerie
+    oNFData['data'] := JsonObject():New()
+    
+    // Dados do Cabeçalho (SF2)
+    oNFData['data']['cabecalho'] := JsonObject():New()
+    oNFData['data']['cabecalho']['documento'] := AllTrim(SF2->F2_DOC)
+    oNFData['data']['cabecalho']['serie'] := AllTrim(SF2->F2_SERIE)
+    oNFData['data']['cabecalho']['cliente'] := AllTrim(SF2->F2_CLIENTE)
+    oNFData['data']['cabecalho']['loja'] := AllTrim(SF2->F2_LOJA)
+    oNFData['data']['cabecalho']['nomeCliente'] := AllTrim(Posicione("SA1", 1, xFilial("SA1") + cCliente + cLoja, "A1_NOME"))
+    oNFData['data']['cabecalho']['emissao'] := DtoC(SF2->F2_EMISSAO)
+    oNFData['data']['cabecalho']['valorTotal'] := SF2->F2_VALBRUT
+    oNFData['data']['cabecalho']['chaveNFe'] := AllTrim(SF2->F2_CHVNFE)
+    
+    // Dados dos Itens (SD2)
+    oNFData['data']['itens'] := {}
+    
+    SD2->(DbSetOrder(3)) // D2_FILIAL+D2_DOC+D2_SERIE+D2_CLIENTE+D2_LOJA
+    If SD2->(DbSeek(xFilial("SD2") + cNumNF + cSerie + cCliente + cLoja))
+        While SD2->(!Eof()) .And. SD2->D2_DOC == cNumNF .And. SD2->D2_SERIE == cSerie
+            
+            oItem := JsonObject():New()
+            oItem['item'] := AllTrim(SD2->D2_ITEM)
+            oItem['produto'] := AllTrim(SD2->D2_COD)
+            oItem['descricao'] := AllTrim(Posicione("SB1", 1, xFilial("SB1") + SD2->D2_COD, "B1_DESC"))
+            oItem['quantidade'] := SD2->D2_QUANT
+            oItem['valorUnitario'] := SD2->D2_PRCVEN
+            oItem['valorTotal'] := SD2->D2_TOTAL
+            oItem['tes'] := AllTrim(SD2->D2_TES)
+            oItem['cf'] := AllTrim(SD2->D2_CF)
+            
+            aAdd(oNFData['data']['itens'], oItem)
+            
+            SD2->(DbSkip())
+        EndDo
+    EndIf
+    
+    // Adiciona metadados
+    oNFData['data']['metadata'] := JsonObject():New()
+    oNFData['data']['metadata']['empresa'] := cEmpAnt
+    oNFData['data']['metadata']['filial'] := cFilAnt
+    oNFData['data']['metadata']['dataHoraEnvio'] := FWTimeStamp(3) // ISO 8601
+    oNFData['data']['metadata']['usuario'] := __cUserID
+    
+    // Converte para string JSON
+    cJson := oNFData:ToJson()
+    
+    // Envia para o Kafka
+    lRet := oKafka:Send(cJson)
+    
+    If lRet
+        ConOut("[KAFKA] Nota Fiscal " + cNumNF + "/" + cSerie + " enviada com sucesso!")
+        // Opcional: Gravar log na tabela customizada
+        U_LOGKAFKA(cNumNF, cSerie, "SUCCESS", "Enviado com sucesso")
+    Else
+        ConOut("[KAFKA] Erro ao enviar Nota Fiscal " + cNumNF + "/" + cSerie)
+        U_LOGKAFKA(cNumNF, cSerie, "ERROR", oKafka:GetError())
+    EndIf
+    
+Return lRet
+
+/*/{Protheus.doc} KafkaProducer
+Classe para encapsular a comunicação com Kafka via REST API
+
+@type Class
+@author Fernando Vernier
+@since 10/10/2025
+/*/
+Class KafkaProducer
+    Data cUrl
+    Data cTopic
+    Data cError
+    Data nTimeOut
+    
+    Method New() Constructor
+    Method Send(cJson)
+    Method GetError()
+EndClass
+
+Method New() Class KafkaProducer
+    ::cUrl := GetMV("MV_KAFKAURL",, "http://localhost:8082/topics/") // Kafka REST Proxy
+    ::nTimeOut := GetMV("MV_KAFKATO",, 120) // Timeout em segundos
+    ::cError := ""
+Return Self
+
+Method Send(cJson) Class KafkaProducer
+    Local lRet := .T.
+    Local oRest := FWRest():New(::cUrl)
+    Local cResponse := ""
+    Local oResponse
+    
+    // Configura headers
+    oRest:setPath("protheus-notas-fiscais") // Nome do tópico
+    oRest:SetPostParams(cJson)
+    
+    // Headers necessários para Kafka REST Proxy
+    oRest:SetHeader("Content-Type", "application/vnd.kafka.json.v2+json")
+    oRest:SetHeader("Accept", "application/vnd.kafka.v2+json")
+    
+    // Envia POST
+    If oRest:Post()
+        cResponse := oRest:GetResult()
+        oResponse := JsonObject():New()
+        oResponse:FromJson(cResponse)
+        
+        If oResponse <> Nil .And. ValType(oResponse['offsets']) == "A"
+            ConOut("[KAFKA] Offset: " + cValToChar(oResponse['offsets'][1]['offset']))
+            lRet := .T.
+        Else
+            ::cError := "Resposta inválida do Kafka"
+            lRet := .F.
+        EndIf
+    Else
+        ::cError := oRest:GetLastError()
+        lRet := .F.
+    EndIf
+    
+Return lRet
+
+Method GetError() Class KafkaProducer
+Return ::cError
+
+/*/{Protheus.doc} U_LOGKAFKA
+Função para registrar logs de integração (opcional)
+
+@type User Function
+@param cNumNF, Character, Número da NF
+@param cSerie, Character, Série
+@param cStatus, Character, Status (SUCCESS/ERROR)
+@param cMsg, Character, Mensagem
+/*/
+User Function LOGKAFKA(cNumNF, cSerie, cStatus, cMsg)
+    ConOut("[LOG KAFKA] " + cNumNF + "/" + cSerie + " - " + cStatus + " - " + cMsg)
+    
+    // Aqui você pode implementar gravação em tabela customizada (ZZZ)
+    // Para o exemplo, apenas log no console
+Return
