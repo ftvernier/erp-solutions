@@ -1,0 +1,171 @@
+#Include "Protheus.ch"
+#Include "RestFul.ch"
+
+/*/{Protheus.doc} EventPublisher
+Classe responsável por publicar eventos do Protheus para o Kafka via Middleware
+@type class
+@author Fernando Vernier
+@since 10/10/2025
+@version 1.0
+/*/
+Class EventPublisher
+
+    Data cUrl          As String
+    Data lEnabled      As Logical
+    Data nTimeout      As Numeric
+    Data cLastError    As String
+    Data cEventId      As String
+
+    Method New() Constructor
+    Method Publish(cEventType, cTopic, oData)
+    Method BuildPayload(cEventType, oData)
+    Method GenerateEventId()
+    Method LogError(cError)
+    Method IsEnabled()
+
+EndClass
+
+/*/{Protheus.doc} New
+Construtor da classe - Inicializa configurações
+@type method
+@author Fernando Vernier
+@since 10/10/2025
+/*/
+Method New() Class EventPublisher
+
+    ::cUrl       := AllTrim(SuperGetMV("MV_KFKURL", .F., "http://localhost:3000/events"))
+    ::lEnabled   := SuperGetMV("MV_KFKENAB", .F., .T.)
+    ::nTimeout   := SuperGetMV("MV_KFKTOUT", .F., 30)
+    ::cLastError := ""
+    ::cEventId   := ""
+
+Return Self
+
+/*/{Protheus.doc} Publish
+Publica um evento para o middleware Kafka
+@type method
+@param cEventType - Tipo do evento (ex: "invoice_issued")
+@param cTopic - Tópico Kafka (ex: "protheus.invoices.issued")
+@param oData - Objeto JSON com os dados do evento
+@return lSuccess - .T. se publicado com sucesso
+@author Fernando Vernier
+@since 10/10/2025
+/*/
+Method Publish(cEventType, cTopic, oData) Class EventPublisher
+    Local lSuccess   := .F.
+    Local oPayload   := Nil
+    Local cPayload   := ""
+    Local oRest      := Nil
+    Local cResponse  := ""
+
+    // Verifica se está habilitado
+    If !::IsEnabled()
+        Return .T. // Retorna true para não travar o processo
+    EndIf
+
+    // Gera ID único do evento
+    ::GenerateEventId()
+
+    // Monta o payload completo
+    oPayload := ::BuildPayload(cEventType, cTopic, oData)
+    
+    If oPayload == Nil
+        ::LogError("Erro ao construir payload do evento")
+        Return .F.
+    EndIf
+
+    // Converte para JSON
+    cPayload := oPayload:ToJson()
+
+    // Inicializa cliente REST
+    oRest := FWRest():New(::cUrl)
+    oRest:setPath("/publish")
+    oRest:SetPostParams(cPayload)
+
+    // Define timeout
+    oRest:nTimeOut := ::nTimeout
+
+    // Envia requisição POST
+    If oRest:Post()
+        lSuccess := .T.
+        ConOut("[EventPublisher] Evento publicado com sucesso - ID: " + ::cEventId)
+    Else
+        ::cLastError := "HTTP Error: " + oRest:GetLastError()
+        ::LogError(::cLastError)
+        lSuccess := .F.
+    EndIf
+
+    FreeObj(oRest)
+
+Return lSuccess
+
+/*/{Protheus.doc} BuildPayload
+Constrói o payload completo do evento
+@type method
+@param cEventType - Tipo do evento
+@param cTopic - Tópico Kafka
+@param oData - Dados do evento
+@return oPayload - Objeto JSON completo
+@author Fernando Vernier
+@since 10/10/2025
+/*/
+Method BuildPayload(cEventType, cTopic, oData) Class EventPublisher
+    Local oPayload := JsonObject():New()
+
+    oPayload["event_id"]   := ::cEventId
+    oPayload["event_type"] := cEventType
+    oPayload["topic"]      := cTopic
+    oPayload["timestamp"]  := FWTimeStamp(3) // ISO 8601 format
+    oPayload["source"]     := "protheus_erp"
+    oPayload["data"]       := oData
+
+Return oPayload
+
+/*/{Protheus.doc} GenerateEventId
+Gera um ID único para o evento (UUID simplificado)
+@type method
+@return cEventId - ID único
+@author Fernando Vernier
+@since 10/10/2025
+/*/
+Method GenerateEventId() Class EventPublisher
+    Local cTime := Time()
+    Local cDate := DToS(Date())
+    Local cRand := AllTrim(Str(Randomize(1, 999999)))
+    
+    ::cEventId := cDate + "-" + StrTran(cTime, ":", "") + "-" + PadL(cRand, 6, "0")
+
+Return ::cEventId
+
+/*/{Protheus.doc} LogError
+Registra erro no console do Protheus
+@type method
+@param cError - Mensagem de erro
+@author Fernando Vernier
+@since 10/10/2025
+/*/
+Method LogError(cError) Class EventPublisher
+    ConOut("[EventPublisher] ERRO: " + cError)
+    ConOut("[EventPublisher] Event ID: " + ::cEventId)
+    ConOut("[EventPublisher] URL: " + ::cUrl)
+Return
+
+/*/{Protheus.doc} IsEnabled
+Verifica se a publicação está habilitada
+@type method
+@return lEnabled
+@author Fernando Vernier
+@since 10/10/2025
+/*/
+Method IsEnabled() Class EventPublisher
+    If !::lEnabled
+        ConOut("[EventPublisher] Publicacao de eventos desabilitada (MV_KFKENAB)")
+        Return .F.
+    EndIf
+
+    If Empty(::cUrl)
+        ConOut("[EventPublisher] URL do middleware nao configurada (MV_KFKURL)")
+        Return .F.
+    EndIf
+
+Return .T.
