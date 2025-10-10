@@ -4,12 +4,10 @@
 /*/{Protheus.doc} M460FIM
 Ponto de Entrada executado após o faturamento da nota fiscal
 Envia os dados da NF para o Apache Kafka via REST API
-
 @type User Function
 @author Fernando Vernier
 @since 10/10/2025
 @version 1.0
-
 @see https://github.com/ftvernier/erp-solutions
 /*/
 User Function M460FIM()
@@ -31,12 +29,10 @@ Função que prepara e envia os dados da NF para o Kafka
 @type User Function
 @author Fernando Vernier
 @since 10/10/2025
-
 @param cNumNF, Character, Número da Nota Fiscal
 @param cSerie, Character, Série da Nota Fiscal
 @param cCliente, Character, Código do Cliente
 @param cLoja, Character, Loja do Cliente
-
 @return Logical, .T. se enviou com sucesso
 /*/
 User Function SENDKAFKA(cNumNF, cSerie, cCliente, cLoja)
