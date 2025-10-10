@@ -55,36 +55,6 @@ Configure os seguintes parâmetros no Protheus para habilitar a publicação de 
 - Conteúdo: `30`
 - Descrição: `Timeout requisicao Kafka`
 
-### Opção 2: Via SQL (Direto no Banco)
-
-```sql
--- Ajuste o nome da tabela conforme seu ambiente (SX6010, SX6990, etc)
-
-INSERT INTO SX6010 (X6_FIL, X6_VAR, X6_TIPO, X6_CONTEUD, X6_DESCRIC, X6_DSCSPA, X6_DSCENG, D_E_L_E_T_, R_E_C_N_O_)
-VALUES ('  ', 'MV_KFKURL', 'C', 'http://localhost:3000/events', 'URL do middleware Kafka', 'URL del middleware Kafka', 'Kafka middleware URL', ' ', 
-(SELECT ISNULL(MAX(R_E_C_N_O_), 0) + 1 FROM SX6010));
-
-INSERT INTO SX6010 (X6_FIL, X6_VAR, X6_TIPO, X6_CONTEUD, X6_DESCRIC, X6_DSCSPA, X6_DSCENG, D_E_L_E_T_, R_E_C_N_O_)
-VALUES ('  ', 'MV_KFKENAB', 'L', '.T.', 'Habilita publicacao Kafka', 'Habilita publicacion Kafka', 'Enable Kafka publishing', ' ',
-(SELECT ISNULL(MAX(R_E_C_N_O_), 0) + 1 FROM SX6010));
-
-INSERT INTO SX6010 (X6_FIL, X6_VAR, X6_TIPO, X6_CONTEUD, X6_DESCRIC, X6_DSCSPA, X6_DSCENG, D_E_L_E_T_, R_E_C_N_O_)
-VALUES ('  ', 'MV_KFKTOUT', 'N', '30', 'Timeout requisicao Kafka', 'Timeout solicitud Kafka', 'Kafka request timeout', ' ',
-(SELECT ISNULL(MAX(R_E_C_N_O_), 0) + 1 FROM SX6010));
-```
-
----
-
-## Validação
-
-Execute o comando abaixo no console ADVPL para verificar se os parâmetros foram criados corretamente:
-
-```advpl
-ConOut("MV_KFKURL: " + AllTrim(SuperGetMV("MV_KFKURL", .F., "")))
-ConOut("MV_KFKENAB: " + If(SuperGetMV("MV_KFKENAB", .F., .F.), ".T.", ".F."))
-ConOut("MV_KFKTOUT: " + cValToChar(SuperGetMV("MV_KFKTOUT", .F., 0)))
-```
-
 ---
 
 ## Dicas de Configuração
