@@ -168,10 +168,6 @@ npm --version   # 10.2.4
 sudo mkdir -p /opt/kafka-middleware
 cd /opt/kafka-middleware
 
-# Baixar arquivos do GitHub
-curl -O https://raw.githubusercontent.com/ftvernier/erp-solutions/main/kafka/package.json
-curl -O https://raw.githubusercontent.com/ftvernier/erp-solutions/main/kafka/server.js
-
 # Instalar dependências
 npm install
 
