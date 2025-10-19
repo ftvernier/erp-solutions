@@ -466,15 +466,15 @@ sudo journalctl -u kafka-middleware -n 50
 
 **Verificar conectividade:**
 ```bash
-nc -zv kafka-broker-1.prd.internal 9092
-nc -zv kafka-broker-2.prd.internal 9092
-nc -zv kafka-broker-3.prd.internal 9094
+nc -zv kafka-broker-1 9092
+nc -zv kafka-broker-2 9092
+nc -zv kafka-broker-3 9094
 ```
 
 **Verificar DNS:**
 ```bash
-nslookup kafka-broker-1.prd.internal
-ping kafka-broker-1.prd.internal
+nslookup kafka-broker-1
+ping kafka-broker-1
 ```
 
 ### Problema: Offset sempre "0"
