@@ -4,12 +4,11 @@
 /*/{Protheus.doc} M460FIM
 Ponto de Entrada executado após o faturamento da nota fiscal
 Envia os dados da NF para o Apache Kafka via REST API
+
 @type User Function
 @author Fernando Vernier
-@since 10/10/2025
-@version 1.0
-
-@see https://github.com/ftvernier/erp-solutions/tree/main/kafka
+@since 18/10/2025
+@version 2.0 - FINAL
 /*/
 User Function M460FIM()
     Local aArea := GetArea()
@@ -29,7 +28,7 @@ Função que prepara e envia os dados da NF para o Kafka
 
 @type User Function
 @author Fernando Vernier
-@since 10/10/2025
+@since 18/10/2025
 
 @param cNumNF, Character, Número da Nota Fiscal
 @param cSerie, Character, Série da Nota Fiscal
@@ -85,8 +84,7 @@ User Function SENDKAFKA(cNumNF, cSerie, cCliente, cLoja)
     oMeta['dataHoraEnvio'] := FWTimeStamp(3) // ISO 8601
     oMeta['usuario'] := __cUserID
     
-    // Monta estrutura final do JSON
-    oNFData['topic'] := 'protheus-notas-fiscais'
+    // Monta a estrutura que o middleware espera
     oNFData['key'] := AllTrim(cNumNF) + AllTrim(cSerie)
     oNFData['data'] := JsonObject():New()
     oNFData['data']['cabecalho'] := oCabec
@@ -96,15 +94,17 @@ User Function SENDKAFKA(cNumNF, cSerie, cCliente, cLoja)
     // Converte para string JSON
     cJson := oNFData:ToJson()
     
-    // Envia para o Kafka
-    lRet := oKafka:Send(cJson)
+    // Envia para o Kafka com sistema de fallback
+    lRet := oKafka:SendWithFallback(cJson)
     
     If lRet
         ConOut("[KAFKA] Nota Fiscal " + cNumNF + "/" + cSerie + " enviada com sucesso!")
-        // Opcional: Gravar log na tabela customizada
-        U_LOGKAFKA(cNumNF, cSerie, "SUCCESS", "Enviado com sucesso")
+        ConOut("[KAFKA] Broker utilizado: " + oKafka:GetUsedBroker())
+        ConOut("[KAFKA] Offset: " + oKafka:GetOffset())
+        U_LOGKAFKA(cNumNF, cSerie, "SUCCESS", "Enviado via " + oKafka:GetUsedBroker() + " - Offset: " + oKafka:GetOffset())
     Else
-        ConOut("[KAFKA] Erro ao enviar Nota Fiscal " + cNumNF + "/" + cSerie)
+        ConOut("[KAFKA] ERRO: Falha ao enviar NF " + cNumNF + "/" + cSerie + " em todos os brokers!")
+        ConOut("[KAFKA] Detalhes: " + oKafka:GetError())
         U_LOGKAFKA(cNumNF, cSerie, "ERROR", oKafka:GetError())
     EndIf
     
@@ -112,42 +112,129 @@ Return lRet
 
 /*/{Protheus.doc} KafkaProducer
 Classe para encapsular a comunicação com Kafka via REST API
+Implementa sistema de fallback automático entre múltiplos brokers
 
 @type Class
 @author Fernando Vernier
-@since 10/10/2025
+@since 18/10/2025
+@version 2.0 - FINAL
 /*/
 Class KafkaProducer
-    Data cUrl
+    Data aBrokers
     Data cTopic
     Data cError
     Data nTimeOut
+    Data cUsedBroker
+    Data cLastOffset
     
     Method New() Constructor
-    Method Send(cJson)
+    Method Send(cJson, cBrokerUrl)
+    Method SendWithFallback(cJson)
     Method GetError()
+    Method GetUsedBroker()
+    Method GetOffset()
+    Method GetBrokers()
 EndClass
 
 Method New() Class KafkaProducer
-    ::cUrl := AllTrim(GetMV("MV_KAFKAURL",, "http://localhost:8082/topics/"))
+    ::aBrokers := {}
     ::nTimeOut := GetMV("MV_KAFKATO",, 120)
     ::cError := ""
+    ::cUsedBroker := ""
+    ::cLastOffset := ""
+    ::cTopic := AllTrim(GetMV("MV_KAFKATPC",, "protheus-notas-fiscais"))
+    
+    // Carrega os brokers do parâmetro ou usa os padrões
+    ::aBrokers := ::GetBrokers()
+    
 Return Self
 
-Method Send(cJson) Class KafkaProducer
+Method GetBrokers() Class KafkaProducer
+    Local aBrokersConfig := {}
+    Local cBrokers := AllTrim(GetMV("MV_KAFKABR",, ""))
+    Local nI := 0
+    
+    // Se o parâmetro está vazio, usa os brokers padrão da empresa
+    If Empty(cBrokers)
+        aAdd(aBrokersConfig, "http://localhost:8081")
+    Else
+        // Se tem parâmetro, separa por vírgula
+        aBrokersConfig := StrTokArr(cBrokers, ",")
+        
+        // Remove barras finais se houver
+        For nI := 1 To Len(aBrokersConfig)
+            aBrokersConfig[nI] := AllTrim(aBrokersConfig[nI])
+            // Remove barra final
+            While Right(aBrokersConfig[nI], 1) == "/"
+                aBrokersConfig[nI] := SubStr(aBrokersConfig[nI], 1, Len(aBrokersConfig[nI])-1)
+            EndDo
+        Next nI
+    EndIf
+    
+Return aBrokersConfig
+
+Method SendWithFallback(cJson) Class KafkaProducer
+    Local lRet := .F.
+    Local nI := 0
+    Local cBrokerUrl := ""
+    Local aErrors := {}
+    
+    ConOut("[KAFKA] Iniciando tentativa de envio com fallback")
+    ConOut("[KAFKA] Total de brokers configurados: " + cValToChar(Len(::aBrokers)))
+    
+    // Tenta enviar para cada broker na ordem
+    For nI := 1 To Len(::aBrokers)
+        cBrokerUrl := ::aBrokers[nI]
+        
+        ConOut("[KAFKA] Tentativa " + cValToChar(nI) + "/" + cValToChar(Len(::aBrokers)))
+        ConOut("[KAFKA] Broker: " + cBrokerUrl)
+        
+        // Tenta enviar para o broker atual
+        lRet := ::Send(cJson, cBrokerUrl)
+        
+        If lRet
+            // Sucesso! Registra qual broker foi usado e sai do loop
+            ::cUsedBroker := cBrokerUrl
+            ConOut("[KAFKA] ✓ Sucesso no broker " + cValToChar(nI) + ": " + cBrokerUrl)
+            Exit
+        Else
+            // Falhou, guarda o erro e tenta o próximo
+            aAdd(aErrors, "Broker " + cValToChar(nI) + " (" + cBrokerUrl + "): " + ::cError)
+            ConOut("[KAFKA] ✗ Falha no broker " + cValToChar(nI) + ": " + ::cError)
+        EndIf
+    Next nI
+    
+    // Se falhou em todos, monta mensagem com todos os erros
+    If !lRet
+        ::cError := "Falha em todos os brokers: " + CRLF
+        For nI := 1 To Len(aErrors)
+            ::cError += aErrors[nI]
+            If nI < Len(aErrors)
+                ::cError += CRLF
+            EndIf
+        Next nI
+    EndIf
+    
+Return lRet
+
+Method Send(cJson, cBrokerUrl) Class KafkaProducer
     Local lRet := .T.
-    Local oRest := FWRest():New(::cUrl)
+    Local oRest := FWRest():New(cBrokerUrl)
     Local cResponse := ""
     Local oResponse := JsonObject():New()
     Local aHeader := {}
     Local cParseError := ""
+    Local cPath := ""
+    
+    // Monta o path completo: /topics/nome-do-topico
+    cPath := "/topics/" + ::cTopic
     
     // Configura headers necessários para Kafka REST Proxy
-    aAdd(aHeader, "Content-Type: application/vnd.kafka.json.v2+json")
-    aAdd(aHeader, "Accept: application/vnd.kafka.v2+json")
+    aAdd(aHeader, "Content-Type: application/json")
+    aAdd(aHeader, "Accept: application/json")
     
-    // Configura o caminho (tópico)
-    oRest:setPath("protheus-notas-fiscais")
+    // Configura o caminho
+    oRest:setPath(cPath)
     
     // Define o body do POST
     oRest:SetPostParams(cJson)
@@ -163,14 +250,24 @@ Method Send(cJson) Class KafkaProducer
             // Verifica se tem o campo offsets (sucesso)
             If oResponse:HasProperty('offsets') .And. ValType(oResponse['offsets']) == "A"
                 If Len(oResponse['offsets']) > 0
-                    ConOut("[KAFKA] Offset: " + cValToChar(oResponse['offsets'][1]['offset']))
+                    // Pega o offset retornado
+                    If oResponse['offsets'][1]:HasProperty('offset')
+                        ::cLastOffset := cValToChar(oResponse['offsets'][1]['offset'])
+                        ConOut("[KAFKA] Offset: " + ::cLastOffset)
+                    EndIf
+                    
+                    If oResponse['offsets'][1]:HasProperty('partition')
+                        ConOut("[KAFKA] Partition: " + cValToChar(oResponse['offsets'][1]['partition']))
+                    EndIf
+                    
                     lRet := .T.
+                    ::cError := ""
                 Else
                     ::cError := "Resposta sem offsets"
                     lRet := .F.
                 EndIf
             Else
-                ::cError := "Resposta inválida do Kafka - campo offsets não encontrado"
+                ::cError := "Resposta inválida - campo offsets não encontrado"
                 lRet := .F.
             EndIf
         Else
@@ -190,12 +287,19 @@ Return lRet
 Method GetError() Class KafkaProducer
 Return ::cError
 
+Method GetUsedBroker() Class KafkaProducer
+Return ::cUsedBroker
+
+Method GetOffset() Class KafkaProducer
+Return ::cLastOffset
+
 /*/{Protheus.doc} U_LOGKAFKA
 Função para registrar logs de integração (opcional)
 
 @type User Function
 @author Fernando Vernier
-@since 10/10/2025
+@since 18/10/2025
+
 @param cNumNF, Character, Número da NF
 @param cSerie, Character, Série
 @param cStatus, Character, Status (SUCCESS/ERROR)
@@ -218,6 +322,50 @@ User Function LOGKAFKA(cNumNF, cSerie, cStatus, cMsg)
     // ZZZ->ZZZ_MSG    := cMsg
     // ZZZ->ZZZ_DATA   := Date()
     // ZZZ->ZZZ_HORA   := Time()
+    // ZZZ->ZZZ_OFFSET := SubStr(cMsg, At("Offset:", cMsg) + 8, 20)
     // MsUnlock()
+    
+Return
+
+/*/{Protheus.doc} U_TESTKAFKA
+Função para testar a integração com Kafka manualmente
+
+@type User Function
+@author Fernando Vernier
+@since 18/10/2025
+/*/
+User Function TESTKAFKA()
+    Local oKafka := KafkaProducer():New()
+    Local oTest := JsonObject():New()
+    Local cJson := ""
+    Local lRet := .F.
+    
+    // Monta um JSON de teste no formato que o middleware espera
+    oTest['key'] := 'TEST-' + DtoS(Date()) + "-" + StrTran(Time(), ":", "")
+    oTest['data'] := JsonObject():New()
+    oTest['data']['teste'] := .T.
+    oTest['data']['mensagem'] := 'Teste de integração Protheus-Kafka'
+    oTest['data']['dataHora'] := FWTimeStamp(3)
+    oTest['data']['usuario'] := __cUserID
+    oTest['data']['empresa'] := cEmpAnt
+    oTest['data']['filial'] := cFilAnt
+    
+    cJson := oTest:ToJson()
+    
+    ConOut("[TESTE KAFKA] Iniciando teste de integração")
+    ConOut("[TESTE KAFKA] JSON: " + cJson)
+    
+    lRet := oKafka:SendWithFallback(cJson)
+    
+    If lRet
+        MsgInfo("Teste enviado com sucesso!" + CRLF + CRLF + ;
+                "Broker utilizado: " + oKafka:GetUsedBroker() + CRLF + ;
+                "Offset: " + oKafka:GetOffset(), ;
+                "Teste Kafka - Sucesso")
+    Else
+        MsgStop("Falha no teste!" + CRLF + CRLF + ;
+                "Erro: " + oKafka:GetError(), ;
+                "Teste Kafka - Erro")
+    EndIf
     
 Return
