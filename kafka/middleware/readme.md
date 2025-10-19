@@ -178,7 +178,7 @@ npm install
 # Configurar ambiente
 cat > .env << 'EOF'
 PORT=8081
-KAFKA_BROKERS=kafka-broker-1.prd.internal:9092,kafka-broker-2.prd.internal:9092,kafka-broker-3.prd.internal:9094
+KAFKA_BROKERS=kafka-broker-1:9092,kafka-broker-2:9092,kafka-broker-3:9094
 LOG_LEVEL=info
 EOF
 ```
