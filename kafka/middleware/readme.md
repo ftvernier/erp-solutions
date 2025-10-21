@@ -1215,7 +1215,7 @@ Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para ma
 ## 🙏 Agradecimentos Especiais
 
 ### v2.0
-- **Denilson Soares** ([@TOTVS](https://www.linkedin.com/in/denilson-soares/)): Feedback crucial sobre garantias de entrega e Event-Driven Architecture que motivou a v2.0
+- **Denilson Soares** ([@TOTVS](https://www.linkedin.com/in/denison-soares-br/)): Feedback crucial sobre garantias de entrega e Event-Driven Architecture que motivou a v2.0
 
 ### Comunidade
 - Comunidade Protheus
