@@ -1,4 +1,3 @@
-cat > package.json << 'EOF'
 {
   "name": "kafka-middleware-protheus",
   "version": "1.0.0",
