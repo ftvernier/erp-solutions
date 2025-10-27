@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # API Principal - Recebe webhooks do Protheus
+  api:
+    build: ./api
+    container_name: webhook-hub-api
+    ports:
+      - "8000:8000"
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=postgresql://webhook_user:webhook_pass@db:5432/webhook_hub
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - ./api:/app
+    restart: unless-stopped
+    networks:
+      - webhook-network
+
+  # Worker - Processa e envia webhooks
+  worker:
+    build: ./api
+    container_name: webhook-hub-worker
+    command: python worker.py
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - DATABASE_URL=postgresql://webhook_user:webhook_pass@db:5432/webhook_hub
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - ./api:/app
+    restart: unless-stopped
+    networks:
+      - webhook-network
+
+  # Redis - Fila de mensagens
+  redis:
+    image: redis:7-alpine
+    container_name: webhook-hub-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    networks:
+      - webhook-network
+
+  # PostgreSQL - Banco de dados
+  db:
+    image: postgres:15-alpine
+    container_name: webhook-hub-db
+    environment:
+      - POSTGRES_USER=webhook_user
+      - POSTGRES_PASSWORD=webhook_pass
+      - POSTGRES_DB=webhook_hub
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - webhook-network
+
+  # Frontend - Painel de administração
+  frontend:
+    build: ./frontend
+    container_name: webhook-hub-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
+    restart: unless-stopped
+    networks:
+      - webhook-network
+
+volumes:
+  redis-data:
+  postgres-data:
+
+networks:
+  webhook-network:
+    driver: bridge
