@@ -272,25 +272,20 @@ Return lSuccess
 3. Teste a conexÃ£o:
    U_WHTestConnection()
    
-4. Use nos pontos de entrada ou customizaÃ§Ãµes:
-   - MA410MNU (menu do pedido de vendas)
-   - MT410TOK (validaÃ§Ã£o do pedido)
-   - MTA410I (apÃ³s inclusÃ£o do pedido)
-   - SPEDNFE (apÃ³s emissÃ£o da NF-e)
-   - Etc.
+4. Use nos pontos de entrada ou customizações
    
 5. Exemplos de uso:
    
-   // ApÃ³s gravar pedido
+   // Após gravar pedido
    WHPedidoCriado()
    
-   // ApÃ³s emitir nota
+   // Após emitir nota
    WHNFeEmitida()
    
-   // VerificaÃ§Ã£o de estoque (job/schedule)
+   // Verificação de estoque (job/schedule)
    WHEstoqueBaixo("000001", "01")
    
-   // ApÃ³s cadastrar cliente
+   // Após cadastrar cliente
    WHClienteCadastrado()
    
    // Evento customizado
