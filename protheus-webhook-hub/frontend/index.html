@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protheus Webhook Hub - Painel de Controle</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Protheus Webhook Hub</h1>
+            <p>Sistema de Integração com Aplicações Modernas</p>
+        </header>
+
+        <!-- Estatísticas -->
+        <section class="stats-grid" id="statsSection">
+            <div class="stat-card">
+                <div class="stat-icon">⚙️</div>
+                <div class="stat-content">
+                    <h3 id="totalConfigs">0</h3>
+                    <p>Configurações</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <h3 id="activeConfigs">0</h3>
+                    <p>Ativas</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-content">
+                    <h3 id="totalLogs">0</h3>
+                    <p>Eventos Total</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">✔️</div>
+                <div class="stat-content">
+                    <h3 id="successLogs">0</h3>
+                    <p>Sucessos</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">❌</div>
+                <div class="stat-content">
+                    <h3 id="failedLogs">0</h3>
+                    <p>Falhas</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⏳</div>
+                <div class="stat-content">
+                    <h3 id="queueSize">0</h3>
+                    <p>Na Fila</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab-button active" onclick="showTab('configs')">Configurações</button>
+            <button class="tab-button" onclick="showTab('logs')">Logs de Eventos</button>
+            <button class="tab-button" onclick="showTab('test')">Testar Webhook</button>
+        </div>
+
+        <!-- Tab: Configurações -->
+        <section id="configsTab" class="tab-content active">
+            <div class="section-header">
+                <h2>Configurações de Webhooks</h2>
+                <button class="btn btn-primary" onclick="showAddConfigModal()">+ Nova Configuração</button>
+            </div>
+            
+            <div id="configsList" class="configs-list">
+                <p class="loading">Carregando...</p>
+            </div>
+        </section>
+
+        <!-- Tab: Logs -->
+        <section id="logsTab" class="tab-content">
+            <div class="section-header">
+                <h2>Logs de Eventos</h2>
+                <div class="filters">
+                    <select id="statusFilter" onchange="loadLogs()">
+                        <option value="">Todos os Status</option>
+                        <option value="success">Sucesso</option>
+                        <option value="failed">Falha</option>
+                        <option value="pending">Pendente</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="loadLogs()">🔄 Atualizar</button>
+                </div>
+            </div>
+            
+            <div id="logsList" class="logs-list">
+                <p class="loading">Carregando...</p>
+            </div>
+        </section>
+
+        <!-- Tab: Testar -->
+        <section id="testTab" class="tab-content">
+            <div class="section-header">
+                <h2>Testar Envio de Webhook</h2>
+            </div>
+            
+            <div class="test-form">
+                <div class="form-group">
+                    <label>Tipo de Evento</label>
+                    <input type="text" id="testEventType" placeholder="Ex: pedido.criado" value="teste.webhook">
+                </div>
+                
+                <div class="form-group">
+                    <label>Dados do Evento (JSON)</label>
+                    <textarea id="testEventData" rows="10" placeholder='{"campo": "valor"}'>{
+  "numero_pedido": "123456",
+  "cliente": "000001",
+  "valor_total": 1500.00,
+  "status": "aprovado"
+}</textarea>
+                </div>
+                
+                <button class="btn btn-primary btn-large" onclick="sendTestWebhook()">📤 Enviar Teste</button>
+                
+                <div id="testResult" class="test-result" style="display: none;"></div>
+            </div>
+        </section>
+
+        <!-- Modal: Nova Configuração -->
+        <div id="addConfigModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Nova Configuração de Webhook</h2>
+                    <span class="close" onclick="closeAddConfigModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <form id="addConfigForm">
+                        <div class="form-group">
+                            <label>Nome da Configuração *</label>
+                            <input type="text" id="configName" required placeholder="Ex: Notificação Slack - Pedidos">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Tipo de Evento *</label>
+                            <input type="text" id="configEventType" required placeholder="Ex: pedido.criado">
+                            <small>Eventos disponíveis: pedido.criado, nfe.emitida, estoque.baixo, cliente.cadastrado</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Tipo de Destino *</label>
+                            <select id="configDestType" required>
+                                <option value="slack">Slack</option>
+                                <option value="teams">Microsoft Teams</option>
+                                <option value="custom">Webhook Customizado</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>URL de Destino *</label>
+                            <input type="url" id="configDestUrl" required placeholder="https://hooks.slack.com/services/...">
+                            <small id="urlHelp">Cole aqui a URL do webhook do Slack</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="configActive" checked>
+                                Ativo
+                            </label>
+                        </div>
+                        
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="closeAddConfigModal()">Cancelar</button>
+                            <button type="submit" class="btn btn-primary">Salvar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Desenvolvido por <a href="https://github.com/ftvernier/erp-solutions" target="_blank">Fernando Vernier</a></p>
+            <p>API Status: <span id="apiStatus" class="status-indicator">🟢 Online</span></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
