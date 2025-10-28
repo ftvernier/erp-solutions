@@ -4,7 +4,7 @@
 
 Uma ferramenta web interativa que gera código TLPP (TOTVS Language Plus Plus) para criação de APIs REST no Protheus, incluindo documentação Swagger automática e código para consumo de APIs externas.
 
-Acesse: [https://ftvernier.github.io/erp-solutions/](https://api-tlpp-generator.netlify.app)
+Acesse: [[https://ftvernier.github.io/erp-solutions/](https://api-tlpp-generator.netlify.app)](https://api-tlpp-generator.netlify.app)
 
 ## ✨ Funcionalidades
 
