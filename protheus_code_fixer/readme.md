@@ -244,16 +244,6 @@ A ferramenta fornece estatísticas detalhadas:
 - [x] Exportação de relatórios
 - [x] Suporte UTF-8
 
-### 🔮 Próximas Versões
-
-- [ ] **v1.1**: Modo batch (linha de comando)
-- [ ] **v1.2**: Integração com Git (analisar apenas arquivos modificados)
-- [ ] **v1.3**: Exportação para Excel/HTML
-- [ ] **v1.4**: Análise de complexidade de código
-- [ ] **v2.0**: Correção automática completa (sem TODOs)
-- [ ] **v2.1**: Plugin para VSCode
-- [ ] **v2.2**: CI/CD integration
-
 ---
 
 ## 🤝 Contribuindo
