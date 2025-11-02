@@ -298,13 +298,19 @@ Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
 
 ---
 
-## 👤 Autor
+## 💬 Conecte-se Comigo
 
-**Fernando Vernier**
+Gostou do conteúdo? Vamos conversar sobre integração de sistemas, arquitetura de software e transformação digital!
 
-- LinkedIn: [linkedin.com/in/seu-perfil](https://linkedin.com/in/seu-perfil)
-- GitHub: [@seu-usuario](https://github.com/seu-usuario)
-- Email: seu.email@exemplo.com
+- 💼 **LinkedIn**: [Fernando Vernier](https://www.linkedin.com/in/fernando-v-10758522/)
+- 📧 **Email**: fernando.vernier@hotmail.com
+- 💻 **GitHub**: [github.com/ftvernier/erp-solutions](https://github.com/ftvernier/erp-solutions)
+
+### 🤝 Apoie Este Projeto
+
+Se este conteúdo agregou valor para você ou sua empresa, considere apoiar o projeto:
+
+💵 **PIX**: `fernandovernier@gmail.com`
 
 ---
 
@@ -316,15 +322,6 @@ Distribuído sob a licença MIT. Veja `LICENSE` para mais informações.
 
 ---
 
-## 📞 Suporte
-
-Encontrou um bug? Tem uma sugestão?
-
-- 🐛 [Abra uma Issue](https://github.com/seu-usuario/protheus-code-fixer/issues)
-- 💬 [Discussões](https://github.com/seu-usuario/protheus-code-fixer/discussions)
-- 📧 Email: fernando.vernier@hotmail.com
-
----
 
 ## ⭐ Mostre seu apoio
 
