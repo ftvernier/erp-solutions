@@ -271,7 +271,7 @@ Contribuições são **muito bem-vindas**!
 
 Este projeto segue **100%** a documentação oficial da TOTVS sobre as mudanças no Release 2510:
 
-- [TDN TOTVS - Restrições Release 2510]([https://tdn.totvs.com/](https://tdn.totvs.com/pages/releaseview.action?pageId=974812561))
+- [TDN TOTVS - Restrições Release 2510](https://tdn.totvs.com/pages/releaseview.action?pageId=974812561)
 
 ### Cenários cobertos pela ferramenta:
 
