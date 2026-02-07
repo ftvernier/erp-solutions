@@ -1,0 +1,532 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - ERP Protheus 2.0{% endblock %}
+
+{% block content %}
+<!-- Statistics Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-server fs-1 text-primary mb-2"></i>
+                <h3 class="fw-bold">{{ stats.total }}</h3>
+                <p class="text-muted mb-0">Total de Serviços</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-check-circle-fill fs-1 text-success mb-2"></i>
+                <h3 class="fw-bold text-success">{{ stats.ativos }}</h3>
+                <p class="text-muted mb-0">Serviços Ativos</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-x-circle-fill fs-1 text-danger mb-2"></i>
+                <h3 class="fw-bold text-danger">{{ stats.parados }}</h3>
+                <p class="text-muted mb-0">Serviços Parados</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <i class="bi bi-speedometer2 fs-1 text-info mb-2"></i>
+                <h3 class="fw-bold">{{ stats.uptime_percentual }}%</h3>
+                <p class="text-muted mb-0">Uptime</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search and Filters -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchServices" placeholder="Buscar serviços...">
+                </div>
+            </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
+                    {% if permissoes.can_manage_all %}
+                    <button class="btn btn-success btn-sm" onclick="executarAcaoGlobal('iniciar_todos')">
+                        <i class="bi bi-play-circle-fill me-1"></i>Iniciar Todos
+                    </button>
+                    <button class="btn btn-danger btn-sm" onclick="executarAcaoGlobal('parar_todos')">
+                        <i class="bi bi-stop-circle-fill me-1"></i>Parar Todos
+                    </button>
+                    {% endif %}
+                    
+                    <!-- TIMER CONTROLS -->
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary" id="btnPausarRefresh" onclick="toggleAutoRefresh()" title="Pausar/Retomar">
+                            <i class="bi bi-pause-circle" id="iconRefresh"></i>
+                        </button>
+                        <select class="form-select form-select-sm" id="selectRefreshInterval" onchange="alterarIntervaloRefresh()" style="width: auto;" title="Intervalo de atualização">
+                            <option value="5000">5s</option>
+                            <option value="10000" selected>10s</option>
+                            <option value="15000">15s</option>
+                            <option value="20000">20s</option>
+                            <option value="30000">30s</option>
+                            <option value="60000">1min</option>
+                        </select>
+                    </div>
+                    
+                    <button class="btn btn-primary btn-sm" onclick="atualizarDashboard()">
+                        <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+                    </button>
+                    
+                    <div class="badge bg-info" id="badgeCountdown" style="min-width: 55px; cursor: help;" title="Tempo até próxima atualização">
+                        <i class="bi bi-clock"></i>
+                        <span id="countdownText">10s</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Services by Groups -->
+{% for grupo_nome, grupo_data in grupos.items() %}
+<div class="card border-0 shadow-sm mb-4 service-group" data-group="{{ grupo_nome }}">
+    <div class="card-header py-3" style="background: {{ grupo_data.color }}; color: white;">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="{{ grupo_data.icon }} me-2"></i>
+                {{ grupo_nome }}
+            </h5>
+            <div>
+                <span class="badge bg-light text-dark">
+                    {{ grupo_data.ativos }}/{{ grupo_data.total }} ativos
+                </span>
+                <span class="badge bg-light text-dark">
+                    {{ grupo_data.percentual_ativo }}% uptime
+                </span>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Serviço</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Uptime</th>
+                        <th class="text-center">CPU</th>
+                        <th class="text-center">Memória</th>
+                        <th class="text-center">Threads</th>
+                        {% if permissoes.can_manage_all %}
+                        <th class="text-center">Ações</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for servico in grupo_data.servicos %}
+                    <tr class="service-row" data-service="{{ servico.servico }}">
+                        <td>
+                            <strong>{{ servico.servico }}</strong>
+                            <br>
+                            <small class="text-muted">PID: {{ servico.pid }}</small>
+                        </td>
+                        <td class="text-center">
+                            {% if servico.ativo %}
+                            <span class="badge bg-success">
+                                <i class="bi bi-check-circle-fill me-1"></i>Ativo
+                            </span>
+                            {% else %}
+                            <span class="badge bg-danger">
+                                <i class="bi bi-x-circle-fill me-1"></i>Parado
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ servico.uptime }}</td>
+                        <td class="text-center">
+                            <span class="badge {% if servico.cpu_percent > 80 %}bg-danger{% elif servico.cpu_percent > 50 %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ servico.cpu_percent }}%
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge {% if servico.memoria_percent > 80 %}bg-danger{% elif servico.memoria_percent > 50 %}bg-warning{% else %}bg-success{% endif %}">
+                                {{ servico.memoria_mb|round(1) }} MB
+                            </span>
+                        </td>
+                        <td class="text-center">{{ servico.threads }}</td>
+                        {% if permissoes.can_manage_all %}
+                        <td class="text-center">
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-success" onclick="executarAcao('{{ servico.servico }}', 'start')" title="Iniciar">
+                                    <i class="bi bi-play-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-danger" onclick="executarAcao('{{ servico.servico }}', 'stop')" title="Parar">
+                                    <i class="bi bi-stop-fill"></i>
+                                </button>
+                                <button class="btn btn-outline-warning" onclick="executarAcao('{{ servico.servico }}', 'restart')" title="Reiniciar">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                                {% if servico.ativo and servico.pid != '0' %}
+                                <button class="btn btn-outline-dark" onclick="executarAcao('{{ servico.servico }}', 'kill', '{{ servico.pid }}')" title="Kill">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            <button class="btn btn-sm btn-outline-info mt-1" onclick="verLogs('{{ servico.servico }}')" title="Ver logs">
+                                <i class="bi bi-file-text"></i>
+                            </button>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Recent History -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-clock-history me-2"></i>
+                Histórico Recente
+            </h5>
+            <a href="/historico" class="btn btn-sm btn-outline-primary">
+                Ver Completo
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Usuário</th>
+                        <th>Serviço</th>
+                        <th>Ação</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in historico %}
+                    <tr>
+                        <td>{{ item.timestamp }}</td>
+                        <td>{{ item.nome_completo or item.usuario }}</td>
+                        <td>{{ item.servico or '-' }}</td>
+                        <td><code>{{ item.acao }}</code></td>
+                        <td>
+                            {% if item.status == 'sucesso' %}
+                            <span class="badge bg-success">Sucesso</span>
+                            {% else %}
+                            <span class="badge bg-danger">Falha</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+console.log('🚀 Iniciando Dashboard Timer...');
+
+// ===== AUTO-REFRESH COM TIMER VISUAL =====
+let autoRefreshEnabled = true;
+let refreshInterval = 10000;
+let refreshTimer = null;
+let countdownTimer = null;
+let segundosRestantes = 10;
+
+function iniciarAutoRefresh() {
+    console.log('⏱️  Iniciando auto-refresh:', refreshInterval + 'ms');
+    
+    if (!autoRefreshEnabled) {
+        console.log('⏸️  Auto-refresh desabilitado');
+        return;
+    }
+    
+    if (refreshTimer) clearTimeout(refreshTimer);
+    if (countdownTimer) clearInterval(countdownTimer);
+    
+    segundosRestantes = Math.floor(refreshInterval / 1000);
+    atualizarDisplayCountdown();
+    
+    countdownTimer = setInterval(() => {
+        segundosRestantes--;
+        atualizarDisplayCountdown();
+        if (segundosRestantes <= 0) clearInterval(countdownTimer);
+    }, 1000);
+    
+    refreshTimer = setTimeout(() => {
+        if (autoRefreshEnabled) {
+            console.log('🔄 Auto-refresh: recarregando...');
+            location.reload();
+        }
+    }, refreshInterval);
+}
+
+function pararAutoRefresh() {
+    console.log('⏹️  Parando auto-refresh');
+    autoRefreshEnabled = false;
+    
+    if (refreshTimer) clearTimeout(refreshTimer);
+    if (countdownTimer) clearInterval(countdownTimer);
+    
+    const badge = document.getElementById('badgeCountdown');
+    const text = document.getElementById('countdownText');
+    const icon = document.getElementById('iconRefresh');
+    const btn = document.getElementById('btnPausarRefresh');
+    
+    if (badge) badge.className = 'badge bg-secondary';
+    if (text) text.textContent = 'Pausado';
+    if (icon) icon.className = 'bi bi-play-circle';
+    if (btn) btn.className = 'btn btn-success';
+}
+
+function toggleAutoRefresh() {
+    console.log('🔀 Toggle auto-refresh');
+    
+    if (autoRefreshEnabled) {
+        pararAutoRefresh();
+    } else {
+        autoRefreshEnabled = true;
+        
+        const badge = document.getElementById('badgeCountdown');
+        const icon = document.getElementById('iconRefresh');
+        const btn = document.getElementById('btnPausarRefresh');
+        
+        if (badge) badge.className = 'badge bg-info';
+        if (icon) icon.className = 'bi bi-pause-circle';
+        if (btn) btn.className = 'btn btn-outline-secondary';
+        
+        iniciarAutoRefresh();
+    }
+}
+
+function alterarIntervaloRefresh() {
+    const select = document.getElementById('selectRefreshInterval');
+    if (!select) return;
+    
+    refreshInterval = parseInt(select.value);
+    localStorage.setItem('refreshInterval', refreshInterval);
+    
+    console.log('⏱️  Intervalo alterado para:', refreshInterval + 'ms');
+    
+    if (autoRefreshEnabled) {
+        iniciarAutoRefresh();
+    }
+    
+    // Toast opcional
+    if (typeof window.showToast === 'function') {
+        window.showToast('info', 'Intervalo Alterado', 
+            `Auto-refresh: ${select.options[select.selectedIndex].text}`);
+    }
+}
+
+function atualizarDisplayCountdown() {
+    const badge = document.getElementById('badgeCountdown');
+    const text = document.getElementById('countdownText');
+    
+    if (!badge || !text) return;
+    
+    if (!autoRefreshEnabled) {
+        badge.className = 'badge bg-secondary';
+        text.textContent = 'Pausado';
+        return;
+    }
+    
+    if (segundosRestantes <= 3) {
+        badge.className = 'badge bg-warning text-dark';
+    } else if (segundosRestantes <= 5) {
+        badge.className = 'badge bg-info';
+    } else {
+        badge.className = 'badge bg-success';
+    }
+    
+    text.textContent = segundosRestantes + 's';
+}
+
+function atualizarDashboard() {
+    console.log('🔄 Atualização manual');
+    
+    const wasActive = autoRefreshEnabled;
+    if (wasActive) pararAutoRefresh();
+    
+    if (typeof window.showLoading === 'function') {
+        window.showLoading('Atualizando dashboard...');
+    }
+    
+    const filtro = document.getElementById('searchServices').value;
+    localStorage.setItem('filtroServicos', filtro);
+    
+    setTimeout(() => location.reload(), 300);
+}
+
+// ===== AÇÕES DOS SERVIÇOS =====
+function executarAcao(servico, acao, pid = null) {
+    if (!confirm(`Tem certeza que deseja executar '${acao}' em ${servico}?`)) {
+        return;
+    }
+    
+    const wasActive = autoRefreshEnabled;
+    if (wasActive) pararAutoRefresh();
+    
+    if (typeof window.showLoading === 'function') {
+        window.showLoading(`Executando ${acao}...`);
+    }
+    
+    const data = { servico, acao };
+    if (pid) data.pid = pid;
+    
+    fetch('/api/acao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (typeof window.hideLoading === 'function') window.hideLoading();
+        
+        if (data.success) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', 'Sucesso', data.mensagem);
+            }
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            if (typeof window.showToast === 'function') {
+                window.showToast('error', 'Erro', data.erro || 'Falha ao executar ação');
+            }
+            if (wasActive) {
+                autoRefreshEnabled = true;
+                iniciarAutoRefresh();
+            }
+        }
+    })
+    .catch(err => {
+        if (typeof window.hideLoading === 'function') window.hideLoading();
+        if (typeof window.showToast === 'function') {
+            window.showToast('error', 'Erro', 'Erro de comunicação');
+        }
+        if (wasActive) {
+            autoRefreshEnabled = true;
+            iniciarAutoRefresh();
+        }
+    });
+}
+
+function executarAcaoGlobal(acao) {
+    const msg = acao === 'iniciar_todos' ? 'iniciar todos os serviços' : 'parar todos os serviços';
+    if (!confirm(`Tem certeza que deseja ${msg}?`)) {
+        return;
+    }
+    
+    if (autoRefreshEnabled) pararAutoRefresh();
+    
+    if (typeof window.showLoading === 'function') {
+        window.showLoading('Executando ação global...');
+    }
+    
+    fetch('/api/acao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ acao })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (typeof window.hideLoading === 'function') window.hideLoading();
+        
+        if (data.success) {
+            if (typeof window.showToast === 'function') {
+                window.showToast('success', 'Sucesso', data.mensagem);
+            }
+            setTimeout(() => location.reload(), 3000);
+        } else {
+            if (typeof window.showToast === 'function') {
+                window.showToast('error', 'Erro', data.erro);
+            }
+        }
+    })
+    .catch(err => {
+        if (typeof window.hideLoading === 'function') window.hideLoading();
+        if (typeof window.showToast === 'function') {
+            window.showToast('error', 'Erro', 'Erro de comunicação');
+        }
+    });
+}
+
+function verLogs(servico) {
+    window.location.href = `/logs?servico=${servico}`;
+}
+
+// ===== FILTRO DE BUSCA =====
+function setupFiltro() {
+    const searchInput = document.getElementById('searchServices');
+    if (!searchInput) return;
+    
+    const filtroSalvo = localStorage.getItem('filtroServicos');
+    if (filtroSalvo) {
+        searchInput.value = filtroSalvo;
+        filtrarServicos(filtroSalvo);
+    }
+    
+    searchInput.addEventListener('input', function(e) {
+        const termo = e.target.value;
+        filtrarServicos(termo);
+        localStorage.setItem('filtroServicos', termo);
+    });
+}
+
+function filtrarServicos(termo) {
+    termo = termo.toLowerCase();
+    let visiveis = 0;
+    
+    document.querySelectorAll('.service-row').forEach(row => {
+        const servico = row.dataset.service.toLowerCase();
+        const match = servico.includes(termo);
+        row.style.display = match ? '' : 'none';
+        if (match) visiveis++;
+    });
+    
+    document.querySelectorAll('.service-group').forEach(group => {
+        const visibleRows = group.querySelectorAll('.service-row:not([style*="display: none"])');
+        group.style.display = visibleRows.length > 0 ? '' : 'none';
+    });
+}
+
+// ===== INICIALIZAÇÃO =====
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📄 DOM carregado');
+    
+    const intervalSalvo = localStorage.getItem('refreshInterval');
+    if (intervalSalvo) {
+        refreshInterval = parseInt(intervalSalvo);
+        const select = document.getElementById('selectRefreshInterval');
+        if (select) select.value = refreshInterval;
+    }
+    
+    setupFiltro();
+    iniciarAutoRefresh();
+    
+    console.log('✅ Dashboard inicializado - Auto-refresh:', autoRefreshEnabled);
+    console.log('⏱️  Intervalo:', refreshInterval + 'ms');
+});
+</script>
+{% endblock %}

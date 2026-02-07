@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico - ERP Protheus 2.0{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-clock-history me-2"></i>Histórico de Ações</h2>
+        <p class="text-muted">Registro completo de todas as ações executadas no sistema</p>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="fw-bold">{{ estatisticas.total_acoes }}</h3>
+                <p class="text-muted mb-0">Total de Ações</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <h3 class="fw-bold">{{ estatisticas.periodo_dias }}</h3>
+                <p class="text-muted mb-0">Dias de Histórico</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Últimas Ações</h5>
+            {% if permissoes.can_export %}
+            <a href="/export/historico?dias=30" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-download me-1"></i>Exportar CSV
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Usuário</th>
+                        <th>Serviço</th>
+                        <th>Ação</th>
+                        <th>Status</th>
+                        <th>Mensagem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in historico %}
+                    <tr>
+                        <td>{{ item.timestamp }}</td>
+                        <td>{{ item.nome_completo or item.usuario }}</td>
+                        <td><code>{{ item.servico or '-' }}</code></td>
+                        <td><span class="badge bg-primary">{{ item.acao }}</span></td>
+                        <td>
+                            {% if item.status == 'sucesso' %}
+                            <span class="badge bg-success">Sucesso</span>
+                            {% else %}
+                            <span class="badge bg-danger">Falha</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ item.mensagem or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,152 @@
+/* Dashboard ERP Protheus 2.0 - Estilos Customizados */
+
+/* ========== Variáveis CSS ========== */
+:root {
+    --primary: #4f46e5;
+    --secondary: #6366f1;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --info: #06b6d4;
+    --light: #f8fafc;
+    --dark: #1e293b;
+    --border: #e2e8f0;
+}
+
+/* ========== Cards ========== */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* ========== Badges ========== */
+.badge {
+    font-weight: 500;
+    padding: 0.35rem 0.75rem;
+}
+
+/* ========== Buttons ========== */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-2px);
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+/* ========== Tables ========== */
+.table-hover tbody tr:hover {
+    background-color: rgba(79, 70, 229, 0.05);
+}
+
+.table thead th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.875rem;
+    letter-spacing: 0.5px;
+}
+
+/* ========== Service Groups ========== */
+.service-group {
+    animation: fadeIn 0.5s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========== Loading States ========== */
+.skeleton {
+    background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s ease-in-out infinite;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* ========== Dark Theme ========== */
+[data-theme="dark"] {
+    --light: #0f172a;
+    --dark: #f1f5f9;
+    --border: #334155;
+}
+
+[data-theme="dark"] body {
+    background: #0f172a;
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .card {
+    background: #1e293b;
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .table {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(99, 102, 241, 0.1);
+}
+
+[data-theme="dark"] .navbar-custom {
+    background: #1e293b !important;
+}
+
+[data-theme="dark"] .footer-custom {
+    background: #1e293b !important;
+}
+
+/* ========== Animations ========== */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

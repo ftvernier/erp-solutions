@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - ERP Protheus 2.0{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2><i class="bi bi-file-text me-2"></i>Visualização de Logs</h2>
+        <p class="text-muted">Logs do journalctl dos serviços Protheus</p>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">Selecione o Serviço</label>
+                <select class="form-select" id="selectServico">
+                    <option value="">-- Escolha um serviço --</option>
+                    {% for servico in servicos %}
+                    <option value="{{ servico }}" {% if request.args.get('servico') == servico %}selected{% endif %}>
+                        {{ servico }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Quantidade de Linhas</label>
+                <select class="form-select" id="selectLinhas">
+                    <option value="50">50 linhas</option>
+                    <option value="100" selected>100 linhas</option>
+                    <option value="200">200 linhas</option>
+                    <option value="500">500 linhas</option>
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-primary w-100" onclick="carregarLogs()">
+                    <i class="bi bi-search me-1"></i>Carregar Logs
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm" id="logsContainer" style="display: none;">
+    <div class="card-header bg-white py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Logs de <span id="servicoNome"></span></h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="carregarLogs()">
+                <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <pre id="logsContent" class="bg-dark text-light p-3 rounded" style="max-height: 600px; overflow-y: auto; font-size: 0.875rem;"><code></code></pre>
+    </div>
+</div>
+
+<div class="alert alert-info" id="msgInicial">
+    <i class="bi bi-info-circle me-2"></i>
+    Selecione um serviço e clique em "Carregar Logs" para visualizar
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function carregarLogs() {
+    const servico = document.getElementById('selectServico').value;
+    const linhas = document.getElementById('selectLinhas').value;
+    
+    if (!servico) {
+        alert('Selecione um serviço primeiro');
+        return;
+    }
+    
+    showLoading('Carregando logs...');
+    
+    fetch(`/api/logs/${servico}?linhas=${linhas}`)
+        .then(res => res.json())
+        .then(data => {
+            hideLoading();
+            
+            if (data.success) {
+                document.getElementById('logsContainer').style.display = 'block';
+                document.getElementById('msgInicial').style.display = 'none';
+                document.getElementById('servicoNome').textContent = servico;
+                
+                const logsText = data.logs.join('\n');
+                document.getElementById('logsContent').querySelector('code').textContent = logsText;
+                
+                // Scroll para o final
+                const pre = document.getElementById('logsContent');
+                pre.scrollTop = pre.scrollHeight;
+            } else {
+                showToast('error', 'Erro', data.erro || 'Falha ao carregar logs');
+            }
+        })
+        .catch(err => {
+            hideLoading();
+            showToast('error', 'Erro', 'Erro de comunicação com servidor');
+        });
+}
+
+// Auto-carregar se veio da URL
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('servico')) {
+    setTimeout(carregarLogs, 500);
+}
+</script>
+{% endblock %}
