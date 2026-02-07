@@ -677,29 +677,9 @@ CREATE TABLE alertas (
 - [ ] Notificações por email
 - [ ] PWA (Progressive Web App)
 
-### 📅 Próximas Versões
-
-#### v2.1.0 (Q2 2024)
-- [ ] Gráficos de performance histórica
-- [ ] Alertas configuráveis
-- [ ] Agendamento de ações (cron-like)
-- [ ] Temas customizáveis
-
-#### v2.2.0 (Q3 2024)
-- [ ] Suporte multi-servidor
-- [ ] API GraphQL
-- [ ] Integração Prometheus/Grafana
-- [ ] Backup automático
-
-#### v3.0.0 (Q4 2024)
-- [ ] Machine Learning para predição de falhas
-- [ ] Análise de logs com IA
-- [ ] Multi-tenancy
-- [ ] SSO/LDAP integration
-
 ### 💡 Sugestões
 
-Tem alguma ideia? [Abra uma issue](https://github.com/seu-usuario/dashboard-erp-protheus-v2/issues/new) com a tag `enhancement`!
+Tem alguma ideia? [Abra uma issue](https://github.com/ftvernier/erp-solutions/issues/new) com a tag `enhancement`!
 
 ---
 
