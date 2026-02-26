@@ -1,111 +1,462 @@
 {% extends "base.html" %}
 
-{% block title %}Logs - ERP Protheus 2.0{% endblock %}
+{% block title %}Logs de Serviços - Dashboard ERP{% endblock %}
 
 {% block content %}
-<div class="row mb-4">
-    <div class="col">
-        <h2><i class="bi bi-file-text me-2"></i>Visualização de Logs</h2>
-        <p class="text-muted">Logs do journalctl dos serviços Protheus</p>
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h2><i class="bi bi-file-text"></i> Visualização de Logs</h2>
+            <p class="text-muted">Visualize logs dos serviços em tempo real ou estático</p>
+        </div>
     </div>
-</div>
 
-<div class="card border-0 shadow-sm mb-4">
-    <div class="card-body">
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label class="form-label">Selecione o Serviço</label>
-                <select class="form-select" id="selectServico">
-                    <option value="">-- Escolha um serviço --</option>
-                    {% for servico in servicos %}
-                    <option value="{{ servico }}" {% if request.args.get('servico') == servico %}selected{% endif %}>
-                        {{ servico }}
-                    </option>
-                    {% endfor %}
-                </select>
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-gear"></i> Configurações</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <!-- Seleção de Serviço -->
+                        <div class="col-md-4">
+                            <label for="selectServico" class="form-label">Serviço:</label>
+                            <select id="selectServico" class="form-select" onchange="trocarServico()">
+                                <option value="">Selecione um serviço...</option>
+                                {% for servico in servicos %}
+                                <option value="{{ servico }}">{{ servico }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Modo de Visualização -->
+                        <div class="col-md-3">
+                            <label class="form-label">Modo de Visualização:</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="modoVisualizacao" id="modoEstatico" value="estatico" checked>
+                                <label class="btn btn-outline-secondary" for="modoEstatico">
+                                    <i class="bi bi-file-earmark-text"></i> Estático
+                                </label>
+
+                                <input type="radio" class="btn-check" name="modoVisualizacao" id="modoStream" value="stream">
+                                <label class="btn btn-outline-success" for="modoStream">
+                                    <i class="bi bi-broadcast"></i> Tempo Real
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Linhas (apenas modo estático) -->
+                        <div class="col-md-2" id="divLinhas">
+                            <label for="selectLinhas" class="form-label">Linhas:</label>
+                            <select id="selectLinhas" class="form-select">
+                                <option value="50">50</option>
+                                <option value="100" selected>100</option>
+                                <option value="200">200</option>
+                                <option value="500">500</option>
+                                <option value="1000">1.000</option>
+                            </select>
+                        </div>
+
+                        <!-- Botões de Ação -->
+                        <div class="col-md-3">
+                            <label class="form-label d-block">&nbsp;</label>
+                            <div class="btn-group w-100" role="group">
+                                <button id="btnCarregar" class="btn btn-primary" onclick="carregarLogs()" disabled>
+                                    <i class="bi bi-arrow-clockwise"></i> Carregar
+                                </button>
+                                <button id="btnDownload" class="btn btn-success" onclick="downloadLog()" disabled>
+                                    <i class="bi bi-download"></i> Download
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Controles do Stream -->
+                    <div class="row mt-3 d-none" id="controlesStream">
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="bi bi-broadcast"></i>
+                                        <strong>Modo Tempo Real Ativo</strong>
+                                        <span id="statusStream" class="ms-2 badge bg-success">Conectado</span>
+                                        <span id="linhasRecebidas" class="ms-2 badge bg-secondary">0 linhas</span>
+                                    </div>
+                                    <div class="btn-group" role="group">
+                                        <button id="btnPausarStream" class="btn btn-sm btn-warning" onclick="pausarStream()">
+                                            <i class="bi bi-pause-circle"></i> Pausar
+                                        </button>
+                                        <button id="btnPararStream" class="btn btn-sm btn-danger" onclick="pararStream()">
+                                            <i class="bi bi-stop-circle"></i> Parar
+                                        </button>
+                                        <button id="btnLimparLog" class="btn btn-sm btn-secondary" onclick="limparLog()">
+                                            <i class="bi bi-trash"></i> Limpar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto-scroll -->
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" id="checkAutoScroll" checked>
+                                <label class="form-check-label" for="checkAutoScroll">
+                                    Auto-scroll (rolar automaticamente para o final)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="col-md-3">
-                <label class="form-label">Quantidade de Linhas</label>
-                <select class="form-select" id="selectLinhas">
-                    <option value="50">50 linhas</option>
-                    <option value="100" selected>100 linhas</option>
-                    <option value="200">200 linhas</option>
-                    <option value="500">500 linhas</option>
-                </select>
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button class="btn btn-primary w-100" onclick="carregarLogs()">
-                    <i class="bi bi-search me-1"></i>Carregar Logs
-                </button>
+        </div>
+    </div>
+
+    <!-- Área de Logs -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="bi bi-terminal"></i> Logs</h5>
+                    <button class="btn btn-sm btn-outline-light" onclick="copiarLogs()">
+                        <i class="bi bi-clipboard"></i> Copiar
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div id="logContainer" class="log-container">
+                        <pre id="logOutput" class="log-output mb-0"><code>Selecione um serviço para visualizar os logs...</code></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="card border-0 shadow-sm" id="logsContainer" style="display: none;">
-    <div class="card-header bg-white py-3">
-        <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">Logs de <span id="servicoNome"></span></h5>
-            <button class="btn btn-sm btn-outline-secondary" onclick="carregarLogs()">
-                <i class="bi bi-arrow-clockwise me-1"></i>Atualizar
-            </button>
-        </div>
-    </div>
-    <div class="card-body">
-        <pre id="logsContent" class="bg-dark text-light p-3 rounded" style="max-height: 600px; overflow-y: auto; font-size: 0.875rem;"><code></code></pre>
-    </div>
-</div>
+<style>
+.log-container {
+    height: 600px;
+    overflow-y: auto;
+    background-color: #1e1e1e;
+    font-family: 'Courier New', monospace;
+}
 
-<div class="alert alert-info" id="msgInicial">
-    <i class="bi bi-info-circle me-2"></i>
-    Selecione um serviço e clique em "Carregar Logs" para visualizar
-</div>
+.log-output {
+    color: #d4d4d4;
+    font-size: 13px;
+    padding: 15px;
+    margin: 0;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
 
-{% endblock %}
+.log-output code {
+    color: inherit;
+}
 
-{% block extra_js %}
+/* Cores para diferentes tipos de log */
+.log-line-error {
+    color: #f48771;
+}
+
+.log-line-warning {
+    color: #dcdcaa;
+}
+
+.log-line-info {
+    color: #4ec9b0;
+}
+
+.log-line-debug {
+    color: #9cdcfe;
+}
+
+/* Scrollbar customizada */
+.log-container::-webkit-scrollbar {
+    width: 10px;
+}
+
+.log-container::-webkit-scrollbar-track {
+    background: #252526;
+}
+
+.log-container::-webkit-scrollbar-thumb {
+    background: #3e3e42;
+    border-radius: 5px;
+}
+
+.log-container::-webkit-scrollbar-thumb:hover {
+    background: #4e4e52;
+}
+
+/* Animação de pulse para streaming */
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+.streaming-active {
+    animation: pulse 2s infinite;
+}
+</style>
+
 <script>
+// Variáveis globais
+let eventSource = null;
+let streamPausado = false;
+let linhasCount = 0;
+let bufferPausado = [];
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', function() {
+    // Listeners para modo de visualização
+    document.querySelectorAll('input[name="modoVisualizacao"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            alternarModoVisualizacao();
+        });
+    });
+});
+
+// Troca de serviço
+function trocarServico() {
+    const servico = document.getElementById('selectServico').value;
+    
+    if (servico) {
+        document.getElementById('btnCarregar').disabled = false;
+        document.getElementById('btnDownload').disabled = false;
+        
+        // Se modo stream estiver ativo, reinicia
+        const modoStream = document.getElementById('modoStream').checked;
+        if (modoStream) {
+            iniciarStream();
+        }
+    } else {
+        document.getElementById('btnCarregar').disabled = true;
+        document.getElementById('btnDownload').disabled = true;
+        pararStream();
+    }
+}
+
+// Alternar entre modo estático e stream
+function alternarModoVisualizacao() {
+    const modoStream = document.getElementById('modoStream').checked;
+    const servico = document.getElementById('selectServico').value;
+    
+    // Mostra/esconde elementos
+    document.getElementById('divLinhas').style.display = modoStream ? 'none' : 'block';
+    document.getElementById('btnCarregar').style.display = modoStream ? 'none' : 'inline-block';
+    
+    if (modoStream) {
+        if (servico) {
+            iniciarStream();
+        }
+    } else {
+        pararStream();
+    }
+}
+
+// Carregar logs (modo estático)
 function carregarLogs() {
     const servico = document.getElementById('selectServico').value;
     const linhas = document.getElementById('selectLinhas').value;
     
     if (!servico) {
-        alert('Selecione um serviço primeiro');
+        alert('Selecione um serviço primeiro!');
         return;
     }
     
-    showLoading('Carregando logs...');
+    const logOutput = document.getElementById('logOutput');
+    logOutput.innerHTML = '<code>Carregando logs...</code>';
     
     fetch(`/api/logs/${servico}?linhas=${linhas}`)
-        .then(res => res.json())
+        .then(response => response.json())
         .then(data => {
-            hideLoading();
-            
             if (data.success) {
-                document.getElementById('logsContainer').style.display = 'block';
-                document.getElementById('msgInicial').style.display = 'none';
-                document.getElementById('servicoNome').textContent = servico;
-                
-                const logsText = data.logs.join('\n');
-                document.getElementById('logsContent').querySelector('code').textContent = logsText;
-                
-                // Scroll para o final
-                const pre = document.getElementById('logsContent');
-                pre.scrollTop = pre.scrollHeight;
+                if (data.logs.length === 0) {
+                    logOutput.innerHTML = '<code>Nenhum log encontrado.</code>';
+                } else {
+                    logOutput.innerHTML = '<code>' + data.logs.join('\n') + '</code>';
+                    
+                    // Auto-scroll
+                    if (document.getElementById('checkAutoScroll').checked) {
+                        const container = document.getElementById('logContainer');
+                        container.scrollTop = container.scrollHeight;
+                    }
+                }
             } else {
-                showToast('error', 'Erro', data.erro || 'Falha ao carregar logs');
+                logOutput.innerHTML = '<code class="log-line-error">Erro: ' + data.erro + '</code>';
             }
         })
-        .catch(err => {
-            hideLoading();
-            showToast('error', 'Erro', 'Erro de comunicação com servidor');
+        .catch(error => {
+            logOutput.innerHTML = '<code class="log-line-error">Erro ao carregar logs: ' + error + '</code>';
         });
 }
 
-// Auto-carregar se veio da URL
-const urlParams = new URLSearchParams(window.location.search);
-if (urlParams.get('servico')) {
-    setTimeout(carregarLogs, 500);
+// Iniciar stream em tempo real
+function iniciarStream() {
+    const servico = document.getElementById('selectServico').value;
+    
+    if (!servico) {
+        alert('Selecione um serviço primeiro!');
+        return;
+    }
+    
+    // Para stream anterior se houver
+    pararStream();
+    
+    // Limpa output
+    document.getElementById('logOutput').innerHTML = '<code>Conectando ao stream...</code>';
+    linhasCount = 0;
+    streamPausado = false;
+    bufferPausado = [];
+    
+    // Mostra controles
+    document.getElementById('controlesStream').classList.remove('d-none');
+    
+    // Cria EventSource
+    eventSource = new EventSource(`/api/logs/${servico}/stream`);
+    
+    eventSource.onopen = function() {
+        document.getElementById('statusStream').textContent = 'Conectado';
+        document.getElementById('statusStream').className = 'ms-2 badge bg-success streaming-active';
+        document.getElementById('logOutput').innerHTML = '';
+    };
+    
+    eventSource.onmessage = function(event) {
+        if (streamPausado) {
+            // Armazena no buffer
+            bufferPausado.push(event.data);
+        } else {
+            adicionarLinhaLog(event.data);
+        }
+    };
+    
+    eventSource.onerror = function(err) {
+        console.error('Erro no stream:', err);
+        document.getElementById('statusStream').textContent = 'Erro/Desconectado';
+        document.getElementById('statusStream').className = 'ms-2 badge bg-danger';
+        
+        // Tenta reconectar após 5 segundos
+        setTimeout(() => {
+            if (document.getElementById('modoStream').checked && eventSource) {
+                console.log('Tentando reconectar...');
+                iniciarStream();
+            }
+        }, 5000);
+    };
+}
+
+// Adicionar linha ao log
+function adicionarLinhaLog(linha) {
+    if (!linha) return;
+    
+    const logOutput = document.getElementById('logOutput');
+    const code = logOutput.querySelector('code') || document.createElement('code');
+    
+    // Colorir linha baseado no conteúdo
+    let classe = '';
+    if (linha.toLowerCase().includes('error') || linha.toLowerCase().includes('erro')) {
+        classe = 'log-line-error';
+    } else if (linha.toLowerCase().includes('warn')) {
+        classe = 'log-line-warning';
+    } else if (linha.toLowerCase().includes('info')) {
+        classe = 'log-line-info';
+    } else if (linha.toLowerCase().includes('debug')) {
+        classe = 'log-line-debug';
+    }
+    
+    const span = document.createElement('span');
+    span.className = classe;
+    span.textContent = linha + '\n';
+    code.appendChild(span);
+    
+    if (!logOutput.querySelector('code')) {
+        logOutput.appendChild(code);
+    }
+    
+    linhasCount++;
+    document.getElementById('linhasRecebidas').textContent = linhasCount + ' linhas';
+    
+    // Auto-scroll
+    if (document.getElementById('checkAutoScroll').checked) {
+        const container = document.getElementById('logContainer');
+        container.scrollTop = container.scrollHeight;
+    }
+}
+
+// Pausar stream
+function pausarStream() {
+    streamPausado = !streamPausado;
+    const btn = document.getElementById('btnPausarStream');
+    
+    if (streamPausado) {
+        btn.innerHTML = '<i class="bi bi-play-circle"></i> Continuar';
+        btn.className = 'btn btn-sm btn-success';
+        document.getElementById('statusStream').textContent = 'Pausado';
+        document.getElementById('statusStream').className = 'ms-2 badge bg-warning';
+    } else {
+        btn.innerHTML = '<i class="bi bi-pause-circle"></i> Pausar';
+        btn.className = 'btn btn-sm btn-warning';
+        document.getElementById('statusStream').textContent = 'Conectado';
+        document.getElementById('statusStream').className = 'ms-2 badge bg-success streaming-active';
+        
+        // Processa buffer
+        bufferPausado.forEach(linha => adicionarLinhaLog(linha));
+        bufferPausado = [];
+    }
+}
+
+// Parar stream
+function pararStream() {
+    if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+    }
+    
+    document.getElementById('controlesStream').classList.add('d-none');
+    streamPausado = false;
+    bufferPausado = [];
+}
+
+// Limpar log
+function limparLog() {
+    document.getElementById('logOutput').innerHTML = '';
+    linhasCount = 0;
+    document.getElementById('linhasRecebidas').textContent = '0 linhas';
+}
+
+// Download do log completo
+function downloadLog() {
+    const servico = document.getElementById('selectServico').value;
+    
+    if (!servico) {
+        alert('Selecione um serviço primeiro!');
+        return;
+    }
+    
+    // Abre em nova aba para download
+    window.location.href = `/api/logs/${servico}/download`;
+}
+
+// Copiar logs para clipboard
+function copiarLogs() {
+    const logOutput = document.getElementById('logOutput');
+    const texto = logOutput.textContent;
+    
+    navigator.clipboard.writeText(texto).then(() => {
+        // Toast de sucesso
+        if (typeof showToast === 'function') {
+            showToast('success', 'Copiado!', 'Logs copiados para a área de transferência');
+        } else {
+            alert('Logs copiados para a área de transferência!');
+        }
+    }).catch(err => {
+        console.error('Erro ao copiar:', err);
+        alert('Erro ao copiar logs');
+    });
 }
 </script>
 {% endblock %}
