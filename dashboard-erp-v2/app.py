@@ -32,6 +32,23 @@ alertas_manager = Alertas()
 stats_calculator = StatisticsCalculator()
 
 
+# ==================== FUNÇÕES AUXILIARES ====================
+
+def obter_permissoes_usuario(username):
+    """Obtém permissões do usuário baseado no username"""
+    from auth import UsersConfig
+    
+    if not username:
+        return None
+    
+    usuarios = UsersConfig.USUARIOS
+    for usuario_config in usuarios.values():
+        if usuario_config['username'] == username:
+            return usuario_config['permissoes']
+    
+    return None
+
+
 # ==================== ROTAS PRINCIPAIS ====================
 
 @app.route('/')
@@ -71,7 +88,7 @@ def index():
         
     except Exception as e:
         app.logger.error(f"Erro ao carregar dashboard: {e}")
-        return render_template('error.html', erro=str(e)), 500
+        return render_template('error.html', erro=str(e), permissoes=g.permissoes), 500
 
 
 @app.route('/api/status')
@@ -262,6 +279,116 @@ def api_metricas_servico(servico):
 
 
 @app.route('/api/historico')
+
+
+@app.route('/api/logs/<servico>/stream')
+@requer_autenticacao
+def api_logs_stream(servico):
+    """API: Stream de logs em tempo real usando Server-Sent Events"""
+    import subprocess
+    import time
+    
+    try:
+        if servico not in ServicesConfig.get_all_services():
+            return jsonify({'success': False, 'erro': 'Serviço não encontrado'}), 404
+        
+        def generate():
+            """Gerador para Server-Sent Events"""
+            # Comando journalctl em modo follow
+            cmd = [
+                'sudo', 'journalctl',
+                '-u', f'{servico}.service',
+                '-f',  # Follow mode (tail -f)
+                '-n', '100',  # Começa com últimas 100 linhas
+                '--no-pager'
+            ]
+            
+            process = None
+            try:
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    universal_newlines=True,
+                    bufsize=1
+                )
+                
+                # Envia linhas conforme chegam
+                for line in process.stdout:
+                    # Remove quebras de linha extras
+                    line = line.rstrip('\n')
+                    if line:
+                        # Formato SSE: data: conteúdo\n\n
+                        yield f"data: {line}\n\n"
+                        
+            except Exception as e:
+                yield f"data: ERRO: {str(e)}\n\n"
+            finally:
+                if process:
+                    process.kill()
+                    process.wait()
+        
+        return Response(
+            generate(),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no'
+            }
+        )
+        
+    except Exception as e:
+        app.logger.error(f"Erro no stream de logs de {servico}: {e}")
+        return jsonify({'success': False, 'erro': str(e)}), 500
+
+
+@app.route('/api/logs/<servico>/download')
+@requer_autenticacao
+def api_logs_download(servico):
+    """API: Download do log completo do serviço"""
+    import subprocess
+    
+    try:
+        if servico not in ServicesConfig.get_all_services():
+            return jsonify({'success': False, 'erro': 'Serviço não encontrado'}), 404
+        
+        # Pega TODAS as linhas do log (sem limite)
+        cmd = [
+            'sudo', 'journalctl',
+            '-u', f'{servico}.service',
+            '--no-pager'
+        ]
+        
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        if result.returncode != 0:
+            return jsonify({'success': False, 'erro': 'Erro ao obter logs'}), 500
+        
+        log_content = result.stdout
+        
+        # Nome do arquivo com timestamp
+        filename = f'log_{servico}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.txt'
+        
+        return Response(
+            log_content,
+            mimetype='text/plain',
+            headers={
+                'Content-Disposition': f'attachment; filename={filename}',
+                'Content-Type': 'text/plain; charset=utf-8'
+            }
+        )
+        
+    except subprocess.TimeoutExpired:
+        app.logger.error(f"Timeout ao obter logs de {servico}")
+        return jsonify({'success': False, 'erro': 'Timeout ao obter logs'}), 500
+    except Exception as e:
+        app.logger.error(f"Erro ao fazer download de logs de {servico}: {e}")
+        return jsonify({'success': False, 'erro': str(e)}), 500
 @requer_autenticacao
 def api_historico():
     """API: Retorna histórico de ações"""
@@ -458,7 +585,7 @@ def pagina_historico():
         
     except Exception as e:
         app.logger.error(f"Erro ao carregar página de histórico: {e}")
-        return render_template('error.html', erro=str(e)), 500
+        return render_template('error.html', erro=str(e), permissoes=g.permissoes), 500
 
 
 @app.route('/logs')
@@ -477,7 +604,7 @@ def pagina_logs():
         
     except Exception as e:
         app.logger.error(f"Erro ao carregar página de logs: {e}")
-        return render_template('error.html', erro=str(e)), 500
+        return render_template('error.html', erro=str(e), permissoes=g.permissoes), 500
 
 
 # ==================== HANDLERS DE ERRO ====================
@@ -485,20 +612,39 @@ def pagina_logs():
 @app.errorhandler(404)
 def not_found(error):
     """Handler para página não encontrada"""
-    return render_template('error.html', erro='Página não encontrada'), 404
+    # Obtém permissões do usuário se autenticado
+    auth = request.authorization
+    permissoes = obter_permissoes_usuario(auth.username) if auth else None
+    
+    return render_template('error.html', 
+                         erro='Página não encontrada',
+                         permissoes=permissoes), 404
 
 
 @app.errorhandler(500)
 def internal_error(error):
     """Handler para erro interno"""
     app.logger.error(f"Erro interno: {error}")
-    return render_template('error.html', erro='Erro interno do servidor'), 500
+    
+    # Obtém permissões do usuário se autenticado
+    auth = request.authorization
+    permissoes = obter_permissoes_usuario(auth.username) if auth else None
+    
+    return render_template('error.html', 
+                         erro='Erro interno do servidor',
+                         permissoes=permissoes), 500
 
 
 @app.errorhandler(403)
 def forbidden(error):
     """Handler para acesso negado"""
-    return render_template('error.html', erro='Acesso negado'), 403
+    # Obtém permissões do usuário se autenticado
+    auth = request.authorization
+    permissoes = obter_permissoes_usuario(auth.username) if auth else None
+    
+    return render_template('error.html', 
+                         erro='Acesso negado',
+                         permissoes=permissoes), 403
 
 
 # ==================== CONTEXT PROCESSORS ====================
