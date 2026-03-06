@@ -99,7 +99,7 @@ Ao término, um relatório completo é gerado em `/tmp/protheus-pg-setup-report.
 ```bash
 # Clone o repositório
 git clone https://github.com/ftvernier/erp-solutions.git
-cd erp-solutions/postgres-setup
+cd erp-solutions/postgresql/scripts
 
 # Dê permissão de execução
 chmod +x setup-postgres-protheus.sh
