@@ -1,4 +1,4 @@
-USE [TOTVS2310]
+USE [SEU_BANCO]
 GO
 /****** Object:  StoredProcedure [dbo].[MaintainIndexes]    Script Date: 5/9/2025 7:23:19 AM ******/
 SET ANSI_NULLS ON
