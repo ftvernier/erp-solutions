@@ -147,9 +147,6 @@ detect_hardware() {
 #   O único parâmetro aplicado automaticamente é autovacuum=on, pois é
 #   exigência explícita da TOTVS (testes de homologação comprovaram baixa
 #   performance com autovacuum desabilitado).
-#
-#   Referência: Engenheiro TOTVS — "o que serve para o cliente A,
-#   não serve para o cliente B."
 # ------------------------------------------------------------------------------
 calculate_pg_params() {
     log_section "Calculando Parâmetros de Performance (perfil OLTP/ERP)"
