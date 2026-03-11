@@ -132,11 +132,44 @@ detect_hardware() {
 }
 
 # ------------------------------------------------------------------------------
-# CÁLCULO DINÂMICO DOS PARÂMETROS (baseado no perfil OLTP / PGConfig)
-# Application Profile: ERP or Long Transaction Applications
+# CÁLCULO DE PARÂMETROS DE PERFORMANCE — APENAS REFERÊNCIA
+#
+# ⚠️  AVISO IMPORTANTE:
+#   Os valores calculados abaixo são SUGESTÕES baseadas no hardware detectado
+#   e no perfil OLTP/ERP (referência: PGConfig). Eles NÃO são aplicados
+#   automaticamente em ambientes de Produção.
+#
+#   Cada cliente Protheus tem características únicas: volume de dados,
+#   número de usuários, uso de dicionário no banco, tipo de storage (RDS,
+#   SAN, NVMe local), workload de concorrência etc. Uma fórmula genérica
+#   não substitui análise e ajuste fino manual.
+#
+#   O único parâmetro aplicado automaticamente é autovacuum=on, pois é
+#   exigência explícita da TOTVS (testes de homologação comprovaram baixa
+#   performance com autovacuum desabilitado).
+#
+#   Referência: Engenheiro TOTVS — "o que serve para o cliente A,
+#   não serve para o cliente B."
 # ------------------------------------------------------------------------------
 calculate_pg_params() {
     log_section "Calculando Parâmetros de Performance (perfil OLTP/ERP)"
+
+    echo -e "${YELLOW}${BOLD}"
+    echo "  ╔══════════════════════════════════════════════════════════════╗"
+    echo "  ║  ⚠️  ATENÇÃO — LEIA ANTES DE CONTINUAR                      ║"
+    echo "  ║                                                              ║"
+    echo "  ║  Os parâmetros calculados abaixo são SUGESTÕES de ponto     ║"
+    echo "  ║  de partida, baseadas no hardware deste servidor.           ║"
+    echo "  ║                                                              ║"
+    echo "  ║  NÃO existe tuning universal para Protheus. Os valores      ║"
+    echo "  ║  ideais dependem de: volume de dados, nº de usuários,       ║"
+    echo "  ║  tipo de storage (RDS/SAN/NVMe), uso do dicionário no       ║"
+    echo "  ║  banco e comportamento real da carga de trabalho.           ║"
+    echo "  ║                                                              ║"
+    echo "  ║  Para Produção: consulte um DBA ou o suporte TOTVS antes    ║"
+    echo "  ║  de aplicar qualquer parâmetro de performance.              ║"
+    echo "  ╚══════════════════════════════════════════════════════════════╝"
+    echo -e "${NC}"
 
     local ram_mb=$(( TOTAL_RAM_KB / 1024 ))
 
@@ -175,22 +208,25 @@ calculate_pg_params() {
         PARAM_IO_CONCURRENCY="2"
     fi
 
-    # Autovacuum: obrigatoriamente ON (exigência TOTVS)
+    # Autovacuum: único parâmetro obrigatório TOTVS — NÃO desabilite
     PARAM_AUTOVACUUM="on"
 
-    log_info "shared_buffers              = ${PARAM_SHARED_BUFFERS}MB"
-    log_info "effective_cache_size        = ${PARAM_EFFECTIVE_CACHE}MB"
-    log_info "work_mem                    = ${PARAM_WORK_MEM}MB"
-    log_info "maintenance_work_mem        = ${PARAM_MAINTENANCE_WORK_MEM}MB"
-    log_info "max_connections             = ${PARAM_MAX_CONNECTIONS}"
-    log_info "min_wal_size                = ${PARAM_MIN_WAL_SIZE}"
-    log_info "max_wal_size                = ${PARAM_MAX_WAL_SIZE}"
-    log_info "wal_buffers                 = ${PARAM_WAL_BUFFERS}"
-    log_info "checkpoint_completion_target= ${PARAM_CHECKPOINT_TARGET}"
-    log_info "listen_addresses            = '${PARAM_LISTEN_ADDRESSES}'"
-    log_info "random_page_cost            = ${PARAM_RANDOM_PAGE_COST}"
-    log_info "effective_io_concurrency    = ${PARAM_IO_CONCURRENCY}"
-    log_info "autovacuum                  = ${PARAM_AUTOVACUUM} (obrigatório TOTVS)"
+    echo -e "  Sugestões calculadas para este servidor (${TOTAL_RAM_GB}GB RAM / ${CPU_COUNT} CPUs / ${STORAGE_TYPE^^}):\n"
+    log_info "  shared_buffers               = ${PARAM_SHARED_BUFFERS}MB"
+    log_info "  effective_cache_size         = ${PARAM_EFFECTIVE_CACHE}MB"
+    log_info "  work_mem                     = ${PARAM_WORK_MEM}MB"
+    log_info "  maintenance_work_mem         = ${PARAM_MAINTENANCE_WORK_MEM}MB"
+    log_info "  max_connections              = ${PARAM_MAX_CONNECTIONS}"
+    log_info "  min_wal_size                 = ${PARAM_MIN_WAL_SIZE}"
+    log_info "  max_wal_size                 = ${PARAM_MAX_WAL_SIZE}"
+    log_info "  wal_buffers                  = ${PARAM_WAL_BUFFERS}"
+    log_info "  checkpoint_completion_target = ${PARAM_CHECKPOINT_TARGET}"
+    log_info "  listen_addresses             = '${PARAM_LISTEN_ADDRESSES}'"
+    log_info "  random_page_cost             = ${PARAM_RANDOM_PAGE_COST}"
+    log_info "  effective_io_concurrency     = ${PARAM_IO_CONCURRENCY}"
+    log_warn "  autovacuum                   = ${PARAM_AUTOVACUUM}  ← aplicado automaticamente (exigência TOTVS)"
+    echo ""
+    log_info "  Um arquivo SQL com esses comandos será gerado para revisão manual."
 }
 
 # ------------------------------------------------------------------------------
@@ -287,33 +323,114 @@ init_cluster() {
 }
 
 # ------------------------------------------------------------------------------
-# APLICAÇÃO DOS PARÂMETROS DE PERFORMANCE
+# GERAÇÃO DO ARQUIVO SQL DE TUNING + APLICAÇÃO SELETIVA
+#
+# Estratégia:
+#   - autovacuum=on: aplicado sempre (exigência TOTVS)
+#   - listen_addresses: aplicado sempre (necessário para conexão do AppServer)
+#   - Demais parâmetros: gerados em arquivo SQL para revisão manual
+#   - Em ambientes não-PRD: oferece aplicação opcional com aviso
+#   - Em PRD: NUNCA aplica automaticamente, apenas gera o arquivo
 # ------------------------------------------------------------------------------
+TUNING_SQL_FILE="/tmp/protheus-pg-tuning-sugerido.sql"
+
 apply_performance_params() {
-    log_section "Aplicando Parâmetros de Performance"
+    log_section "Configuração de Performance"
 
-    run_sql() {
-        su - postgres -c "psql -c \"$1\""
-    }
+    run_sql() { su - postgres -c "psql -c \"$1\""; }
 
-    run_sql "ALTER SYSTEM SET shared_buffers = '${PARAM_SHARED_BUFFERS}MB';"
-    run_sql "ALTER SYSTEM SET effective_cache_size = '${PARAM_EFFECTIVE_CACHE}MB';"
-    run_sql "ALTER SYSTEM SET work_mem = '${PARAM_WORK_MEM}MB';"
-    run_sql "ALTER SYSTEM SET maintenance_work_mem = '${PARAM_MAINTENANCE_WORK_MEM}MB';"
-    run_sql "ALTER SYSTEM SET min_wal_size = '${PARAM_MIN_WAL_SIZE}';"
-    run_sql "ALTER SYSTEM SET max_wal_size = '${PARAM_MAX_WAL_SIZE}';"
-    run_sql "ALTER SYSTEM SET wal_buffers = '${PARAM_WAL_BUFFERS}';"
-    run_sql "ALTER SYSTEM SET checkpoint_completion_target = ${PARAM_CHECKPOINT_TARGET};"
+    # ── Parâmetros obrigatórios — aplicados sempre ──────────────────────────
+    log_info "Aplicando parâmetros obrigatórios TOTVS..."
+    run_sql "ALTER SYSTEM SET autovacuum = 'on';"
     run_sql "ALTER SYSTEM SET listen_addresses = '${PARAM_LISTEN_ADDRESSES}';"
-    run_sql "ALTER SYSTEM SET max_connections = ${PARAM_MAX_CONNECTIONS};"
-    run_sql "ALTER SYSTEM SET random_page_cost = ${PARAM_RANDOM_PAGE_COST};"
-    run_sql "ALTER SYSTEM SET effective_io_concurrency = ${PARAM_IO_CONCURRENCY};"
-    run_sql "ALTER SYSTEM SET autovacuum = '${PARAM_AUTOVACUUM}';"
-
-    log_info "Reiniciando o serviço para aplicar todos os parâmetros..."
     systemctl restart "${PG_SERVICE}"
+    log_ok "autovacuum=on e listen_addresses='${PARAM_LISTEN_ADDRESSES}' aplicados."
 
-    log_ok "Parâmetros de performance aplicados com sucesso."
+    # ── Geração do arquivo SQL de tuning para revisão ────────────────────────
+    cat > "$TUNING_SQL_FILE" << EOF
+-- ============================================================
+--  PostgreSQL ${PG_VERSION} — Sugestão de Tuning para Protheus
+--  Gerado por: setup-postgres-protheus.sh
+--  Data: $(date '+%d/%m/%Y %H:%M:%S')
+--  Hardware base: ${TOTAL_RAM_GB}GB RAM | ${CPU_COUNT} CPUs | ${STORAGE_TYPE^^}
+-- ============================================================
+--
+--  ⚠️  ATENÇÃO — NÃO APLIQUE EM PRODUÇÃO SEM ANÁLISE PRÉVIA
+--
+--  Estes valores são sugestões de ponto de partida para o perfil
+--  OLTP/ERP (referência: PGConfig). Os valores ideais variam
+--  conforme: volume de dados, nº de usuários, uso de dicionário
+--  no banco, tipo de storage (RDS/SAN/NVMe) e comportamento
+--  real da sua carga de trabalho.
+--
+--  Recomendações antes de aplicar em PRD:
+--    1. Consulte a documentação TOTVS de tuning PostgreSQL
+--    2. Valide com um DBA ou com o suporte TOTVS
+--    3. Teste em HML com carga representativa
+--    4. Ajuste max_connections: mínimo 2x o nº de usuários do ERP
+--       (o dobro se o dicionário também estiver neste banco)
+--    5. Se usar RDS/cloud: os limites de I/O impactam diretamente
+--       effective_io_concurrency e random_page_cost
+--
+--  Para aplicar: psql -U postgres -f $(basename $TUNING_SQL_FILE)
+--  Após aplicar: SELECT pg_reload_conf(); ou reinicie o serviço.
+-- ============================================================
+
+-- Memória
+ALTER SYSTEM SET shared_buffers = '${PARAM_SHARED_BUFFERS}MB';
+ALTER SYSTEM SET effective_cache_size = '${PARAM_EFFECTIVE_CACHE}MB';
+ALTER SYSTEM SET work_mem = '${PARAM_WORK_MEM}MB';
+ALTER SYSTEM SET maintenance_work_mem = '${PARAM_MAINTENANCE_WORK_MEM}MB';
+
+-- Checkpoint / WAL
+ALTER SYSTEM SET min_wal_size = '${PARAM_MIN_WAL_SIZE}';
+ALTER SYSTEM SET max_wal_size = '${PARAM_MAX_WAL_SIZE}';
+ALTER SYSTEM SET wal_buffers = '${PARAM_WAL_BUFFERS}';
+ALTER SYSTEM SET checkpoint_completion_target = ${PARAM_CHECKPOINT_TARGET};
+
+-- Conexões
+ALTER SYSTEM SET max_connections = ${PARAM_MAX_CONNECTIONS};
+
+-- Storage (ajuste se usar RDS ou storage de rede)
+ALTER SYSTEM SET random_page_cost = ${PARAM_RANDOM_PAGE_COST};
+ALTER SYSTEM SET effective_io_concurrency = ${PARAM_IO_CONCURRENCY};
+
+-- Aplicar sem reiniciar (alguns parâmetros exigem restart)
+-- SELECT pg_reload_conf();
+EOF
+
+    log_ok "Arquivo SQL de tuning gerado em: ${TUNING_SQL_FILE}"
+    echo ""
+
+    # ── Aplicação opcional para ambientes não-PRD ────────────────────────────
+    local has_prd=false
+    for env in "${SELECTED_ENVS[@]}"; do [[ "$env" == "prd" ]] && has_prd=true; done
+
+    if [[ "$has_prd" == "true" ]]; then
+        echo -e "${RED}${BOLD}"
+        echo "  ╔══════════════════════════════════════════════════════════════╗"
+        echo "  ║  🚫  AMBIENTE DE PRODUÇÃO DETECTADO                          ║"
+        echo "  ║                                                              ║"
+        echo "  ║  Os parâmetros de tuning NÃO serão aplicados                ║"
+        echo "  ║  automaticamente em produção.                               ║"
+        echo "  ║                                                              ║"
+        echo "  ║  Revise o arquivo gerado, valide com seu DBA ou com o       ║"
+        echo "  ║  suporte TOTVS e aplique manualmente quando apropriado.     ║"
+        echo "  ╚══════════════════════════════════════════════════════════════╝"
+        echo -e "${NC}"
+    else
+        echo -e "${YELLOW}  Os parâmetros de tuning foram gerados mas NÃO aplicados.${NC}"
+        echo ""
+        read -rp "  Deseja aplicar os parâmetros sugeridos neste ambiente de HML/DEV? [s/N]: " APPLY_TUNING
+        if [[ "${APPLY_TUNING,,}" == "s" ]]; then
+            log_warn "Aplicando parâmetros de tuning (ambiente não-produção)..."
+            su - postgres -c "psql -f '${TUNING_SQL_FILE}' 2>&1 | grep -v '^--'"
+            systemctl restart "${PG_SERVICE}"
+            log_ok "Parâmetros aplicados. Valide o comportamento antes de replicar em PRD."
+        else
+            log_info "Parâmetros não aplicados. Revise o arquivo e aplique manualmente."
+        fi
+    fi
 }
 
 # ------------------------------------------------------------------------------
@@ -443,20 +560,23 @@ generate_report() {
         echo "  Versão       : ${PG_VERSION}"
         echo "  Serviço      : ${PG_SERVICE} (systemd, autostart habilitado)"
         echo ""
-        echo "PARÂMETROS DE PERFORMANCE (perfil OLTP/ERP)"
-        echo "  shared_buffers              = ${PARAM_SHARED_BUFFERS}MB"
-        echo "  effective_cache_size        = ${PARAM_EFFECTIVE_CACHE}MB"
-        echo "  work_mem                    = ${PARAM_WORK_MEM}MB"
-        echo "  maintenance_work_mem        = ${PARAM_MAINTENANCE_WORK_MEM}MB"
-        echo "  max_connections             = ${PARAM_MAX_CONNECTIONS}"
-        echo "  min_wal_size                = ${PARAM_MIN_WAL_SIZE}"
-        echo "  max_wal_size                = ${PARAM_MAX_WAL_SIZE}"
-        echo "  wal_buffers                 = ${PARAM_WAL_BUFFERS}"
-        echo "  checkpoint_completion_target= ${PARAM_CHECKPOINT_TARGET}"
-        echo "  listen_addresses            = '${PARAM_LISTEN_ADDRESSES}'"
-        echo "  random_page_cost            = ${PARAM_RANDOM_PAGE_COST}"
-        echo "  effective_io_concurrency    = ${PARAM_IO_CONCURRENCY}"
-        echo "  autovacuum                  = ${PARAM_AUTOVACUUM}"
+        echo "PARÂMETROS APLICADOS AUTOMATICAMENTE (obrigatórios TOTVS)"
+        echo "  autovacuum       = on"
+        echo "  listen_addresses = '${PARAM_LISTEN_ADDRESSES}'"
+        echo ""
+        echo "SUGESTÕES DE TUNING — REVISAR E APLICAR MANUALMENTE"
+        echo "  Arquivo SQL: ${TUNING_SQL_FILE}"
+        echo "  shared_buffers               = ${PARAM_SHARED_BUFFERS}MB  (25% RAM)"
+        echo "  effective_cache_size         = ${PARAM_EFFECTIVE_CACHE}MB  (75% RAM)"
+        echo "  work_mem                     = ${PARAM_WORK_MEM}MB"
+        echo "  maintenance_work_mem         = ${PARAM_MAINTENANCE_WORK_MEM}MB"
+        echo "  max_connections              = ${PARAM_MAX_CONNECTIONS}  (ajuste: 2x usuários ERP)"
+        echo "  min_wal_size / max_wal_size  = ${PARAM_MIN_WAL_SIZE} / ${PARAM_MAX_WAL_SIZE}"
+        echo "  wal_buffers                  = ${PARAM_WAL_BUFFERS}"
+        echo "  checkpoint_completion_target = ${PARAM_CHECKPOINT_TARGET}"
+        echo "  random_page_cost             = ${PARAM_RANDOM_PAGE_COST}  (${STORAGE_TYPE^^})"
+        echo "  effective_io_concurrency     = ${PARAM_IO_CONCURRENCY}  (${STORAGE_TYPE^^})"
+        echo "  ATENCAO: Se usar RDS/cloud revise random_page_cost e effective_io_concurrency"
         echo ""
         echo "AMBIENTES CRIADOS"
         for env in "${SELECTED_ENVS[@]}"; do
@@ -491,8 +611,9 @@ confirm_execution() {
     echo -e "\n${YELLOW}${BOLD}ATENÇÃO:${NC} Este script irá:"
     echo "  • Instalar o PostgreSQL ${PG_VERSION} via repositório PGDG oficial"
     echo "  • Inicializar o cluster e configurar o systemd"
-    echo "  • Aplicar parâmetros de performance calculados para este servidor"
-    echo "  • Criar estruturas de banco para os ambientes selecionados"
+    echo "  • Aplicar automaticamente: autovacuum=on e listen_addresses (obrigatórios TOTVS)
+  • Gerar arquivo SQL com sugestões de tuning para revisão manual
+  • Criar estruturas de banco (tablespaces, roles, databases) para os ambientes selecionados"
     echo ""
     read -rp "Confirma a execução? [s/N]: " CONFIRM
     [[ "${CONFIRM,,}" == "s" ]] || { log_info "Execução cancelada pelo usuário."; exit 0; }
