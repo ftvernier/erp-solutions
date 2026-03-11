@@ -23,6 +23,35 @@ Este script automatiza **todo esse processo**, do zero até o banco pronto para 
 
 ---
 
+## ⚠️ Aviso Importante sobre Tuning de Performance
+
+> Este aviso foi incorporado após feedback direto de um Engenheiro TOTVS. Agradecemos a revisão técnica da comunidade.
+
+**Não existe tuning universal para Protheus.**
+
+Os parâmetros de performance calculados pelo script são **sugestões de ponto de partida**, baseadas no hardware detectado e no perfil OLTP/ERP (referência: PGConfig). Eles **não são aplicados automaticamente em ambientes de Produção**.
+
+Os valores ideais variam significativamente dependendo de:
+
+- Volume de dados e crescimento histórico do cliente
+- Número de usuários simultâneos no ERP
+- Uso de dicionário no banco (exige no mínimo o dobro de `max_connections`)
+- Tipo de storage: **RDS/cloud tem limitações de I/O** que impactam diretamente `random_page_cost` e `effective_io_concurrency`
+- Workload específico: rotinas de fechamento, integração fiscal, concorrência de escrita
+
+**O que o script aplica automaticamente:**
+- `autovacuum = on` — exigência explícita da TOTVS (testes comprovaram baixa performance com autovacuum desabilitado)
+- `listen_addresses = *` — necessário para conexão do Application Server
+
+**O que o script NÃO aplica automaticamente:**
+- Todos os demais parâmetros de memória, WAL e storage são gerados em um arquivo SQL (`/tmp/protheus-pg-tuning-sugerido.sql`) para **revisão e aplicação manual**
+- Em ambientes HML/DEV, o script oferece a opção de aplicar com aviso explícito
+- Em ambientes PRD, a aplicação automática é **bloqueada** — sempre revise com um DBA ou com o suporte TOTVS
+
+> 💬 *"O que serve para o cliente A, não serve para o cliente B. Esse tipo de tuning às vezes tem que ser feito na mão mesmo, devido ao tamanho do cliente."* — Engenheiro TOTVS
+
+---
+
 ## ⚙️ O que o script faz
 
 ### 1. Detecção automática de ambiente
@@ -99,7 +128,7 @@ Ao término, um relatório completo é gerado em `/tmp/protheus-pg-setup-report.
 ```bash
 # Clone o repositório
 git clone https://github.com/ftvernier/erp-solutions.git
-cd erp-solutions/postgresql/scripts
+cd erp-solutions/postgres-setup
 
 # Dê permissão de execução
 chmod +x setup-postgres-protheus.sh
