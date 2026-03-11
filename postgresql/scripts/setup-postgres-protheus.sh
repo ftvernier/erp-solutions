@@ -134,7 +134,7 @@ detect_hardware() {
 # ------------------------------------------------------------------------------
 # CÁLCULO DE PARÂMETROS DE PERFORMANCE — APENAS REFERÊNCIA
 #
-# ⚠️  AVISO IMPORTANTE:
+#   AVISO IMPORTANTE:
 #   Os valores calculados abaixo são SUGESTÕES baseadas no hardware detectado
 #   e no perfil OLTP/ERP (referência: PGConfig). Eles NÃO são aplicados
 #   automaticamente em ambientes de Produção.
@@ -153,18 +153,18 @@ calculate_pg_params() {
 
     echo -e "${YELLOW}${BOLD}"
     echo "  ╔══════════════════════════════════════════════════════════════╗"
-    echo "  ║  ⚠️  ATENÇÃO — LEIA ANTES DE CONTINUAR                      ║"
+    echo "  ║  ATENÇÃO — LEIA ANTES DE CONTINUAR                           ║"
     echo "  ║                                                              ║"
-    echo "  ║  Os parâmetros calculados abaixo são SUGESTÕES de ponto     ║"
-    echo "  ║  de partida, baseadas no hardware deste servidor.           ║"
+    echo "  ║  Os parâmetros calculados abaixo são SUGESTÕES de ponto      ║"
+    echo "  ║  de partida, baseadas no hardware deste servidor.            ║"
     echo "  ║                                                              ║"
-    echo "  ║  NÃO existe tuning universal para Protheus. Os valores      ║"
-    echo "  ║  ideais dependem de: volume de dados, nº de usuários,       ║"
-    echo "  ║  tipo de storage (RDS/SAN/NVMe), uso do dicionário no       ║"
-    echo "  ║  banco e comportamento real da carga de trabalho.           ║"
+    echo "  ║  NÃO existe tuning universal para Protheus. Os valores       ║"
+    echo "  ║  ideais dependem de: volume de dados, nº de usuários,        ║"
+    echo "  ║  tipo de storage (RDS/SAN/NVMe), uso do dicionário no        ║"
+    echo "  ║  banco e comportamento real da carga de trabalho.            ║"
     echo "  ║                                                              ║"
-    echo "  ║  Para Produção: consulte um DBA ou o suporte TOTVS antes    ║"
-    echo "  ║  de aplicar qualquer parâmetro de performance.              ║"
+    echo "  ║  Para Produção: consulte um DBA ou o suporte TOTVS antes     ║"
+    echo "  ║  de aplicar qualquer parâmetro de performance.               ║"
     echo "  ╚══════════════════════════════════════════════════════════════╝"
     echo -e "${NC}"
 
