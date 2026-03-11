@@ -48,7 +48,7 @@ Os valores ideais variam significativamente dependendo de:
 - Em ambientes HML/DEV, o script oferece a opção de aplicar com aviso explícito
 - Em ambientes PRD, a aplicação automática é **bloqueada** — sempre revise com um DBA ou com o suporte TOTVS
 
-> 💬 *"O que serve para o cliente A, não serve para o cliente B. Esse tipo de tuning às vezes tem que ser feito na mão mesmo, devido ao tamanho do cliente."* — Engenheiro TOTVS
+> 💬 *"O que serve para o cliente A, não serve para o cliente B. Esse tipo de tuning às vezes tem que ser feito na mão mesmo, devido ao tamanho do cliente."* — Ronaldo Andrade Silva - Data Coordinator Totvs - > https://www.linkedin.com/in/rasronaldo/
 
 ---
 
