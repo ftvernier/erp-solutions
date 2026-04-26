@@ -146,4 +146,4 @@ MIT — use, adapte e distribua à vontade.
 
 ---
 
-Feito por [Fernando Vernier]([https://www.linkedin.com/in/ftvernier/](https://www.linkedin.com/in/fernando-v-10758522/)) • [@ftvernier/erp-solutions](https://github.com/ftvernier/erp-solutions)
+Feito por [Fernando Vernier](https://www.linkedin.com/in/ftvernier/](https://www.linkedin.com/in/fernando-v-10758522/) • [@ftvernier/erp-solutions](https://github.com/ftvernier/erp-solutions)
