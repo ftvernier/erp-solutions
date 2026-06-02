@@ -6,7 +6,7 @@
     Demonstra inclusão, alteração e exclusão de Pedido de Venda (SC5/SC6) via MATA410.
     Quando a rotina possui itens, o bloco de código recebe 4 parâmetros: |a, b, c, d|
     @type  Function
-    @author Squad ERP
+    @author Fernando Vernier
     @since 01/06/2025
 /*/
 User Function xInputSC5()
