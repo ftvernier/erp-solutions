@@ -20,7 +20,7 @@
     - lPosaRot  : .T. = nOpc não é calculado com base no aRotina
 
     @type  Function
-    @author Squad ERP
+    @author Fernando Vernier
     @since 01/06/2025
 /*/
 User Function xRotAutoZZ1()
