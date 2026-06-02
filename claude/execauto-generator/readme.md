@@ -76,14 +76,6 @@ seu-projeto/
 
 ---
 
-## Referências oficiais
-
-- [MSExecAuto — TDN TOTVS](https://tdn.totvs.com)
-- [FWMVCRotAuto — TDN TOTVS](https://tdn.totvs.com)
-- [GetAutoGRLog — TDN TOTVS](https://tdn.totvs.com)
-
----
-
 ## Autor
 
 **Fernando Vernier** — Staff Software Engineer, DBA e Tech Lead  
