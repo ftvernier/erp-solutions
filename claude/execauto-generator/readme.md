@@ -1,44 +1,96 @@
-Faz alguns anos que trabalho com Protheus. Nesse tempo, vi o mesmo erro aparecer em bases diferentes, times diferentes, empresas diferentes.
+# execauto-generator
 
-Alguém precisava automatizar uma inclusão via código. Escrevia o ExecAuto, testava em desenvolvimento, funcionava. Subia para produção — e quebrava de um jeito difícil de reproduzir.
-
-Na maioria das vezes, a causa era uma dessas:
-
-→ BEGIN TRANSACTION em volta do MSExecAuto, concorrendo com o controle interno da própria rotina  
-→ lMsErroAuto não resetado antes da chamada  
-→ GetErrorMessage() sendo tratado como string, quando é um array de 9 posições  
-→ PREPARE ENVIRONMENT dentro de Web Service, quando o ambiente já vem do AppServer.ini  
-→ Confusão entre FWLoadModel + GetModel e FWMVCRotAuto — dois padrões MVC com usos diferentes
-
-Não são bugs do Protheus. São detalhes que a documentação cobre, mas que ficam espalhados em artigos, fóruns e anos de experiência acumulada.
+> Skill para Claude Code que gera rotinas automáticas (ExecAuto) em ADVPL/TLPP para o ERP Protheus com zero margem para erro de padrão.
 
 ---
 
-Recentemente comecei a usar Claude Code no meu fluxo de desenvolvimento. E percebi que, sem contexto específico do Protheus, ele cometia exatamente esses erros.
+## O problema que essa skill resolve
 
-Não porque a ferramenta é ruim. Mas porque ExecAuto tem particularidades que não estão no treinamento de nenhum modelo.
+Quem desenvolve para Protheus sabe: ExecAuto parece simples, mas tem armadilhas que só aparecem em produção.
 
-A solução foi criar uma Skill — um conjunto de instruções e exemplos reais que o Claude Code lê antes de gerar qualquer código de rotina automática.
+- Usar `BEGIN TRANSACTION` em volta do `MSExecAuto` — e concorrer com o controle interno da rotina
+- Esquecer de resetar `lMsErroAuto := .F.` antes de cada chamada
+- Confundir `GetErrorMessage()` como string quando é um **array de 9 posições**
+- Não saber quando usar `FWLoadModel + GetModel` versus `FWMVCRotAuto`
+- Usar `PREPARE ENVIRONMENT` dentro de Web Service — quando o ambiente já está definido no `AppServer.ini`
 
-Cobri os três padrões:
-- ExecAuto clássico simples (sem itens)
-- ExecAuto clássico com cabeçalho e itens (array de arrays)
-- ExecAuto MVC via FWLoadModel e via FWMVCRotAuto
-
-Com exemplos de inclusão, alteração e exclusão. Com tratamento de erro correto. Com as regras que a TOTVS documenta mas que ficam fáceis de esquecer no dia a dia.
-
----
-
-Não é sobre IA escrever código por você.
-
-É sobre garantir que, quando ela escreve, ela conhece as regras do ambiente onde o código vai rodar.
-
-A skill está disponível gratuitamente no meu GitHub, junto com os exemplos em ADVPL:
-
-🔗 https://github.com/ftvernier/erp-solutions/tree/main/claude/execauto-generator
-
-Se você trabalha com Protheus e usa ou quer usar Claude Code, pode ser útil.
+Essa skill instrui o Claude Code a conhecer essas diferenças e gerar código correto desde a primeira vez.
 
 ---
 
-#Protheus #ADVPL #TLPP #TOTVS #ClaudeCode #IA #ERPDevelopment #OpenSource
+## O que está coberto
+
+| Padrão | Descrição |
+|---|---|
+| Clássico simples | `MSExecAuto` com cabeçalho — rotinas sem itens (FINA040, MATA020...) |
+| Clássico com itens | `MSExecAuto` com cabeçalho + array de arrays de itens (MATA410, MATA241...) |
+| MVC — FWLoadModel | Acesso a submodelos via `GetModel` + `SetValue` com controle completo |
+| MVC — FWMVCRotAuto | Abordagem enxuta para rotinas próprias ou operações simples |
+
+Cada padrão inclui inclusão, alteração e exclusão com tratamento de erro correto.
+
+---
+
+## Estrutura
+
+```
+execauto-generator/
+  SKILL.md                              # Instruções para o Claude Code
+  examples/
+    execauto-classico-simples.prw       # MSExecAuto sem itens — FINA040/SE1
+    execauto-classico-com-itens.prw     # MSExecAuto com itens — MATA410/SC5+SC6
+    execauto-mvc-fwloadmodel.prw        # FWLoadModel + GetModel — MATA010/SB1
+    execauto-mvc-fwmvcrotauto.prw       # FWMVCRotAuto — modelo simples e com itens
+```
+
+---
+
+## Como instalar
+
+1. Copie a pasta `execauto-generator/` inteira para dentro do `.claude/skills/` do seu projeto:
+
+```
+seu-projeto/
+  .claude/
+    skills/
+      execauto-generator/
+        SKILL.md
+        examples/
+          ...
+```
+
+2. Abra o projeto no Claude Code — a skill é detectada automaticamente.
+
+3. Peça naturalmente:
+   - *"Cria um ExecAuto para incluir um título na SE1 via FINA040"*
+   - *"Gera uma rotina automática MVC para alterar o cadastro de fornecedor"*
+   - *"Como excluir um pedido de venda via código?"*
+
+---
+
+## Requisitos
+
+- [Claude Code](https://claude.ai/code)
+- Protheus 12.1.x ou superior
+- ADVPL / TLPP
+
+---
+
+## Referências oficiais
+
+- [MSExecAuto — TDN TOTVS](https://tdn.totvs.com)
+- [FWMVCRotAuto — TDN TOTVS](https://tdn.totvs.com)
+- [GetAutoGRLog — TDN TOTVS](https://tdn.totvs.com)
+
+---
+
+## Autor
+
+**Fernando Vernier** — Staff Software Engineer, DBA e Tech Lead  
+[GitHub](https://github.com/ftvernier/erp-solutions) · [LinkedIn]([https://www.linkedin.com/in/fernandovernier](https://www.linkedin.com/in/fernando-v-10758522/))
+
+---
+
+## Licença
+
+MIT
