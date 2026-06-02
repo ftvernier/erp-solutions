@@ -5,7 +5,7 @@
     Exemplo de ExecAuto clássico com cabeçalho simples (sem itens).
     Demonstra a inclusão de um título a receber (SE1) via FINA040.
     @type  Function
-    @author Squad ERP
+    @author Fernando Vernier
     @since 01/06/2025
 /*/
 User Function xInputSE1()
