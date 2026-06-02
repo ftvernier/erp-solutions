@@ -79,7 +79,7 @@ seu-projeto/
 ## Autor
 
 **Fernando Vernier** — Staff Software Engineer, DBA e Tech Lead  
-[GitHub](https://github.com/ftvernier/erp-solutions) · [LinkedIn](https://www.linkedin.com/in/fernando-v-10758522/))
+[GitHub](https://github.com/ftvernier/erp-solutions) · [LinkedIn](https://www.linkedin.com/in/fernando-v-10758522/)
 
 ---
 
