@@ -1,6 +1,6 @@
 ---
 name: execauto-generator
-description: >
+description: >-
   Use esta skill para gerar, revisar ou corrigir qualquer código de rotina automática
   (ExecAuto) em ADVPL/TLPP para o ERP Protheus. Ative SEMPRE que o usuário mencionar:
   MSExecAuto, ExecAuto, FWMVCRotAuto, FWLoadModel, rotina automática, GetModel, SetValue,
@@ -14,10 +14,10 @@ description: >
 license: MIT
 metadata:
   domain: Protheus
-  maintainer: Squad ERP
+  maintainer: Fernando Vernier
   author: Fernando Vernier
-  version: 2.0.0
-  category: Code Generation
+  version: '1.0.0'
+  category: code-generation
 ---
 
 # ExecAuto Generator
