@@ -1,6 +1,7 @@
 # AGENTS.md — PO-UI Protheus Angular
 
-Instruções permanentes para o Codex neste projeto.
+Instruções permanentes para o Codex (e outros agentes compatíveis com `AGENTS.md`) neste projeto.
+Conteúdo equivalente ao `CLAUDE.md` (usado pelo Claude Code) — mantenha os dois arquivos sincronizados.
 Leia este arquivo antes de qualquer tarefa de desenvolvimento Angular/PO-UI.
 
 ---
