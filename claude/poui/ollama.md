@@ -5,6 +5,14 @@
 
 ---
 
+## Por que um guia separado para Ollama?
+
+O `CLAUDE.md` principal deste repositório prioriza o **MCP oficial do PO-UI** (`@po-ui/mcp`) como fonte de documentação, com `web_fetch` como fallback. Nenhum dos dois funciona com modelos locais via Ollama — eles não têm acesso à rede por padrão.
+
+Este guia troca essa camada por uma alternativa **100% offline**: a documentação do PO-UI baixada localmente e referenciada por arquivo. O restante do `CLAUDE.md` (arquitetura, NgModules, SubSink, ProtheusLibCore, contrato de API, etc.) permanece **idêntico** — essas regras não dependem de acesso à internet.
+
+---
+
 ## Pré-requisitos
 
 - [Ollama](https://ollama.com) instalado e rodando localmente
@@ -21,36 +29,38 @@ curl -fsSL https://ollama.com/install.sh | sh
 
 # Modelos recomendados para geração de código Angular/TypeScript
 ollama pull qwen2.5-coder:7b     # melhor custo/benefício para código
+ollama pull deepseek-coder-v2     # excelente para TypeScript, contexto maior
 ollama pull codellama:13b         # boa alternativa
 ollama pull llama3.1:8b           # bom para raciocínio geral + código
-ollama pull deepseek-coder-v2     # excelente para TypeScript
 ```
 
-> **Recomendação:** Para projetos Angular com PO-UI, `qwen2.5-coder:7b` ou `deepseek-coder-v2`
-> apresentam os melhores resultados com TypeScript e código estruturado.
+| Modelo | Tamanho | TypeScript | Contexto | Velocidade |
+|---|---|---|---|---|
+| `qwen2.5-coder:7b` | ~4GB | ⭐⭐⭐⭐⭐ | 32k | ⭐⭐⭐⭐ |
+| `deepseek-coder-v2` | ~9GB | ⭐⭐⭐⭐⭐ | 128k | ⭐⭐⭐ |
+| `codellama:13b` | ~7GB | ⭐⭐⭐⭐ | 16k | ⭐⭐⭐ |
+| `llama3.1:8b` | ~5GB | ⭐⭐⭐ | 128k | ⭐⭐⭐⭐ |
+| `mistral:7b` | ~4GB | ⭐⭐⭐ | 32k | ⭐⭐⭐⭐ |
+
+> **Recomendação:** para projetos Angular com PO-UI, `qwen2.5-coder:7b` ou `deepseek-coder-v2` apresentam os melhores resultados com TypeScript e código estruturado.
 
 ---
 
 ## Passo 2 — Instalar a extensão Continue.dev no VS Code
 
-O **Continue.dev** é a extensão que conecta o Ollama ao VS Code e lê arquivos de contexto
-do repositório automaticamente.
+O **Continue.dev** é a extensão que conecta o Ollama ao VS Code e lê arquivos de contexto do repositório (incluindo `CLAUDE.md`) através de referências manuais com `@`.
 
-1. Abra o VS Code
-2. Vá em Extensions (`Ctrl+Shift+X`)
-3. Busque por **Continue**
-4. Instale a extensão oficial **Continue - Codestral, Claude, and more**
-
-Ou instale via terminal:
 ```bash
 code --install-extension Continue.continue
 ```
+
+Ou pela interface: Extensions (`Ctrl+Shift+X`) → busque **Continue** → instale **Continue - Codestral, Claude, and more**.
 
 ---
 
 ## Passo 3 — Configurar o Continue.dev com Ollama
 
-Abra o arquivo de configuração do Continue (`~/.continue/config.json`) e adicione:
+Edite `~/.continue/config.json`:
 
 ```json
 {
@@ -75,14 +85,8 @@ Abra o arquivo de configuração do Continue (`~/.continue/config.json`) e adici
     { "name": "open" }
   ],
   "slashCommands": [
-    {
-      "name": "edit",
-      "description": "Editar código selecionado"
-    },
-    {
-      "name": "comment",
-      "description": "Comentar código selecionado"
-    }
+    { "name": "edit", "description": "Editar código selecionado" },
+    { "name": "comment", "description": "Comentar código selecionado" }
   ]
 }
 ```
@@ -91,40 +95,38 @@ Abra o arquivo de configuração do Continue (`~/.continue/config.json`) e adici
 
 ## Passo 4 — Baixar a documentação PO-UI localmente
 
-Como modelos Ollama rodam offline, é necessário baixar a documentação do PO-UI
-para dentro do projeto. O PO-UI disponibiliza um arquivo único com toda a documentação:
+O PO-UI disponibiliza um arquivo único com toda a documentação:
 
 ```bash
 # Na raiz do seu projeto Angular
 curl -o po-ui-docs.txt https://po-ui.io/llms-full.txt
 ```
 
-Adicione ao `.gitignore` para não versionar (o arquivo pode ter vários MB):
+Adicione ao `.gitignore` (o arquivo pode ter vários MB e fica desatualizado rápido):
 
 ```bash
 echo "po-ui-docs.txt" >> .gitignore
 ```
 
-> **Atualize periodicamente** quando o PO-UI lançar novas versões:
+> **Atualize periodicamente**, sempre que o PO-UI lançar uma nova versão:
 > ```bash
 > curl -o po-ui-docs.txt https://po-ui.io/llms-full.txt
 > ```
 
 ---
 
-## Passo 5 — Copiar o CLAUDE.md adaptado para Ollama
+## Passo 5 — Adaptar a seção de documentação no CLAUDE.md
 
-Copie o arquivo `CLAUDE.md` deste repositório para a raiz do seu projeto e **substitua
-a seção de documentação** pela versão offline:
+Copie o `CLAUDE.md` deste repositório para a raiz do seu projeto e **substitua o Passo 1** (que referencia o MCP/`web_fetch`) por esta versão offline:
 
 ```markdown
-## Documentação PO-UI
+## Passo 1 — Documentação PO-UI (modo offline / Ollama)
 
 A documentação completa do PO-UI está disponível no arquivo `po-ui-docs.txt`
-na raiz deste projeto.
+na raiz deste projeto (baixado de https://po-ui.io/llms-full.txt).
 
 Antes de implementar qualquer componente PO-UI, consulte este arquivo para
-verificar os inputs, outputs, eventos e interfaces corretos do componente.
+verificar inputs, outputs, eventos e interfaces corretos do componente.
 
 Exemplos de consulta:
 - Para po-table: busque "PoTableComponent" ou "po-table" no arquivo
@@ -133,14 +135,13 @@ Exemplos de consulta:
 - Para interfaces: busque "PoTableColumn", "PoDynamicFormField", etc.
 ```
 
-O restante do `CLAUDE.md` (regras de arquitetura, NgModules, SubSink, ProtheusLibCore, etc.)
-permanece **idêntico** — essas regras funcionam com qualquer agente.
+O restante do arquivo (Passo 2 em diante — arquitetura, contrato de API, grid system, `po-chart`) permanece **idêntico**.
 
 ---
 
 ## Passo 6 — Usar no dia a dia com Continue.dev
 
-Com tudo configurado, abra o painel do Continue (`Ctrl+L`) e use normalmente:
+Com tudo configurado, abra o painel do Continue (`Ctrl+L`) e referencie os arquivos com `@`:
 
 ```
 @po-ui-docs.txt Crie uma tela de listagem de pedidos com po-page-list e po-table,
@@ -157,8 +158,7 @@ com po-dynamic-form e campos: código, nome, CNPJ e tipo
 definidos no CLAUDE.md
 ```
 
-> O `@` no Continue.dev permite referenciar arquivos específicos como contexto
-> para o modelo. Combine `@CLAUDE.md` + `@po-ui-docs.txt` para melhores resultados.
+> Combine `@CLAUDE.md` + `@po-ui-docs.txt` para melhores resultados — o primeiro define como escrever, o segundo define o que existe na biblioteca.
 
 ---
 
@@ -166,8 +166,8 @@ definidos no CLAUDE.md
 
 ```
 seu-projeto-angular/
-├── CLAUDE.md          ← padrões de arquitetura (Claude Code)
-├── AGENTS.md          ← padrões de arquitetura (Codex)
+├── CLAUDE.md          ← padrões de arquitetura (Claude Code) — Passo 1 adaptado para offline
+├── AGENTS.md          ← padrões de arquitetura (Codex) — mesma adaptação
 ├── po-ui-docs.txt     ← documentação PO-UI offline (não versionar)
 ├── .gitignore         ← incluir po-ui-docs.txt
 ├── package.json
@@ -189,18 +189,6 @@ seu-projeto-angular/
 
 ---
 
-## Modelos testados para Angular/TypeScript
-
-| Modelo | Tamanho | TypeScript | Contexto | Velocidade |
-|---|---|---|---|---|
-| `qwen2.5-coder:7b` | ~4GB | ⭐⭐⭐⭐⭐ | 32k | ⭐⭐⭐⭐ |
-| `deepseek-coder-v2` | ~9GB | ⭐⭐⭐⭐⭐ | 128k | ⭐⭐⭐ |
-| `codellama:13b` | ~7GB | ⭐⭐⭐⭐ | 16k | ⭐⭐⭐ |
-| `llama3.1:8b` | ~5GB | ⭐⭐⭐ | 128k | ⭐⭐⭐⭐ |
-| `mistral:7b` | ~4GB | ⭐⭐⭐ | 32k | ⭐⭐⭐⭐ |
-
----
-
 ## Dicas para melhores resultados com modelos locais
 
 **Seja específico na tarefa:**
@@ -218,8 +206,7 @@ Crie um service
 @CLAUDE.md @po-ui-docs.txt @currentFile
 ```
 
-**Divida tarefas grandes:**
-Em vez de pedir o CRUD completo de uma vez, peça por arquivo:
+**Divida tarefas grandes** — em vez de pedir o CRUD completo de uma vez, peça por arquivo:
 1. Primeiro o model (`natureza.model.ts`)
 2. Depois o service (`natureza.service.ts`)
 3. Depois o module (`natureza.module.ts`)
@@ -241,4 +228,4 @@ npx tsc --noEmit
 
 ---
 
-Feito por [Fernando Vernier](https://www.linkedin.com/in/fernando-v-10758522/) • [@ftvernier/erp-solutions](https://github.com/ftvernier/erp-solutions)
+Feito por [Fernando Vernier](https://www.linkedin.com/in/ftvernier/) • [@ftvernier/erp-solutions](https://github.com/ftvernier/erp-solutions)
