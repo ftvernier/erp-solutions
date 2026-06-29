@@ -64,10 +64,13 @@ Este módulo entrega um `CLAUDE.md` (e seu equivalente `AGENTS.md`, compatível 
 
 ```
 po-ui-protheus/
-├── CLAUDE.md      ← regras de contexto para Claude Code
-├── AGENTS.md       ← mesmo conteúdo, formato lido pelo Codex
-└── README.md       ← este arquivo
+├── CLAUDE.md          ← regras de contexto para Claude Code
+├── AGENTS.md          ← mesmo conteúdo, formato lido pelo Codex
+├── README.md           ← este arquivo
+└── README-ollama.md    ← guia para uso 100% offline com Ollama + Continue.dev
 ```
+
+> 💡 Usa modelos locais via **Ollama** (sem custo de API)? O MCP do PO-UI e o `web_fetch` não funcionam offline — veja o [README-ollama.md](README-ollama.md) para a versão adaptada da seção de documentação.
 
 ## 🧩 Por que compartilhar isso?
 
