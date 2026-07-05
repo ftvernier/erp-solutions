@@ -22,8 +22,8 @@ SQL (hints de lock, funções, operadores) passa direto e quebra
 silenciosamente quando o banco de dados ativo é trocado para PostgreSQL.
 
 Esta skill varre código AdvPL/TLPP com SQL embutido, separa o que já é
-portável do que não é, e aplica ou sugere a correção apropriada para cada
-padrão encontrado.
+portável do que não é, e sugere (ou aplica, quando solicitado) a correção
+apropriada para cada padrão encontrado.
 
 ## Quando Usar
 
@@ -34,6 +34,14 @@ padrão encontrado.
   `HASHBYTES` ou concatenação com `+` encontrados em SQL embutido
 - Auditar se `ChangeQuery()` é realmente chamado antes de
   `MpSysOpenQuery`/`TCGenQry`/`TCQUERY`
+
+## Modo de Operação
+
+Por padrão, esta skill **detecta e sugere** — apresenta cada ocorrência
+encontrada com o trecho original, o risco e a correção proposta, e só
+aplica a mudança no arquivo quando o usuário confirmar. Isso segue o mesmo
+padrão de `refactor` e `sql-code-review`: análise primeiro, edição depois,
+nunca reescrita em lote sem revisão.
 
 ## O que já é portável (nunca reescrever)
 
@@ -53,14 +61,14 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg` com SQL embutido:
    `BeginSQL/EndSQL`, comando `TCQUERY ... NEW ALIAS`.
 2. Para cada `RetSqlTab()`/`RetSqlName()`/`RetSqlCond()` — não fazer nada,
    já é portável.
-3. Sinalizar `(NOLOCK)`/`WITH (NOLOCK)` literal → substituir por
+3. Sinalizar `(NOLOCK)`/`WITH (NOLOCK)` literal → propor substituir por
    `WITH (%nolock%)` (seguro em MSSQL e PostgreSQL simultaneamente).
 4. Verificar se a string passa por `ChangeQuery()` antes da execução. Se
-   não passar, adicionar a chamada no ponto de execução
+   não passar, propor adicionar a chamada no ponto de execução
    (`MpSysOpenQuery(ChangeQuery(cQuery))`,
    `TCGenQry(,,ChangeQuery(cQuery))` ou `TCQUERY ChangeQuery(cQuery) NEW ALIAS`)
    — pré-requisito para a correção do item 3 funcionar.
-5. Sinalizar e reescrever funções T-SQL literais:
+5. Sinalizar e propor a reescrita de funções T-SQL literais:
    - `ISNULL(a, b)` → `COALESCE(a, b)`
    - `GETDATE()` → `CURRENT_DATE` (uso apenas de data) ou `NOW()` (uso de timestamp)
    - `DATEDIFF(DAY, d1, d2)` → `(d2 - d1)` (subtração de datas já retorna
@@ -70,8 +78,9 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg` com SQL embutido:
    - `HASHBYTES('MD5', x)` → `digest(x, 'md5')` (requer
      `CREATE EXTENSION pgcrypto`)
 6. Sinalizar o operador `+` usado como concatenação *dentro do texto SQL*
-   (ex.: `SELECT A+B AS C`) → reescrever como `A || B`. Não confundir com o
-   `+=` do AdvPL usado para montar a string da query fora dos literais.
+   (ex.: `SELECT A+B AS C`) → propor reescrever como `A || B`. Não
+   confundir com o `+=` do AdvPL usado para montar a string da query fora
+   dos literais.
 7. Verificar `SELECT TOP n` contra o resultado do passo 4 — se
    `ChangeQuery()` não estiver no caminho de execução, tratar como risco
    também (já resolvido automaticamente quando presente).
@@ -96,6 +105,7 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg` com SQL embutido:
 | Reescrever automaticamente nomes cross-database de três partes | Exige decisão de infraestrutura, não é conversão de sintaxe |
 | Tratar todo `CONVERT` da mesma forma | O comportamento depende do código de estilo e do tipo alvo; alguns casos são arquiteturais |
 | Assumir que `TOP n` é sempre seguro só porque `ChangeQuery()` existe em algum lugar do arquivo | É preciso confirmar a chamada naquele caminho de execução específico |
+| Aplicar correções em lote sem mostrar o diff ao usuário | O modo padrão desta skill é detectar e sugerir — aplicar exige confirmação |
 
 ## Referência
 
