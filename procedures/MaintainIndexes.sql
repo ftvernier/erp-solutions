@@ -1,10 +1,3 @@
-USE [SEU_BANCO]
-GO
-/****** Object:  StoredProcedure [dbo].[MaintainIndexes]    Script Date: 5/9/2025 7:23:19 AM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
 ALTER PROCEDURE [dbo].[MaintainIndexes]
 AS
 BEGIN
@@ -19,8 +12,11 @@ BEGIN
     DECLARE @StartTime DATETIMEOFFSET;
     DECLARE @EndTime DATETIMEOFFSET;
     DECLARE @ElapsedTime NVARCHAR(50);
+    DECLARE @LogMessage NVARCHAR(4000);
 
-    DECLARE IndexCursor CURSOR FOR
+    -- Cursor para mapear os índices que precisam de manutenção
+    -- Utilizando o modo 'LIMITED' para máxima performance
+    DECLARE IndexCursor CURSOR LOCAL FAST_FORWARD FOR
     SELECT 
         SCHEMA_NAME(o.schema_id) AS SchemaName,
         OBJECT_NAME(ips.object_id) AS TableName,
@@ -28,15 +24,15 @@ BEGIN
         ips.index_id,
         ips.avg_fragmentation_in_percent
     FROM 
-        sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'SAMPLED') ips
+        sys.dm_db_index_physical_stats (DB_ID(), NULL, NULL, NULL, 'LIMITED') ips
         INNER JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
         INNER JOIN sys.objects o ON o.object_id = i.object_id
     WHERE 
         avg_fragmentation_in_percent > 5
-        AND ips.page_count > 100
+        AND ips.page_count > 1000 -- Melhoria: Aumentado de 100 para 1000 páginas (8MB)
         AND i.type_desc NOT IN ('XML', 'SPATIAL', 'FULLTEXT')
         AND i.is_disabled = 0
-        --EXCLUSÃO DAS TABELAS SYS_ DO PROTHEUS
+        -- EXCLUSÃO DAS TABELAS SYS_ DO PROTHEUS (Dicionário de dados estático)
         AND OBJECT_NAME(ips.object_id) NOT LIKE 'SYS[_]%'
     ORDER BY 
         avg_fragmentation_in_percent DESC;
@@ -48,45 +44,46 @@ BEGIN
     BEGIN
         SET @StartTime = SYSDATETIMEOFFSET();
 
-        BEGIN TRANSACTION;
         BEGIN TRY
+            -- Fragmentação Alta (>= 30%): REBUILD
+            -- Melhoria: Adicionado MAXDOP (Ajuste o número conforme a arquitetura do seu servidor, 2 ou 4 é recomendado)
             IF @Fragmentation >= 30
             BEGIN
-                SET @SQL = 'ALTER INDEX [' + @IndexName + '] ON [' + @SchemaName + '].[' + @TableName + '] REBUILD;';
+                SET @SQL = 'ALTER INDEX [' + @IndexName + '] ON [' + @SchemaName + '].[' + @TableName + '] REBUILD WITH (SORT_IN_TEMPDB = ON, MAXDOP = 4);';
+                EXEC sp_executesql @SQL;
             END
+            
+            -- Fragmentação Leve/Moderada (5% a 29.9%): REORGANIZE
             ELSE IF @Fragmentation >= 5 AND @Fragmentation < 30
             BEGIN
                 SET @SQL = 'ALTER INDEX [' + @IndexName + '] ON [' + @SchemaName + '].[' + @TableName + '] REORGANIZE;';
+                EXEC sp_executesql @SQL;
+                
+                -- Atualização de estatísticas do índice após o REORGANIZE
+                SET @SQL = 'UPDATE STATISTICS [' + @SchemaName + '].[' + @TableName + '] [' + @IndexName + '];';
+                EXEC sp_executesql @SQL;
             END
-
-            EXEC sp_executesql @SQL;
 
             SET @EndTime = SYSDATETIMEOFFSET();
             SET @ElapsedTime = CONVERT(NVARCHAR(50), DATEDIFF(SECOND, @StartTime, @EndTime)) + ' seconds';
 
-            PRINT 'Executed: ' + @SQL + ' | Start Time: ' + CONVERT(NVARCHAR, @StartTime, 121) +
-                  ' | End Time: ' + CONVERT(NVARCHAR, @EndTime, 121) +
-                  ' | Elapsed Time: ' + @ElapsedTime;
+            -- Melhoria: RAISERROR WITH NOWAIT envia o log imediatamente no SQL Agent
+            SET @LogMessage = 'Executed: ' + @SQL + ' | Elapsed Time: ' + @ElapsedTime;
+            RAISERROR(@LogMessage, 0, 1) WITH NOWAIT;
 
-            COMMIT TRANSACTION;
         END TRY
         BEGIN CATCH
-            ROLLBACK TRANSACTION;
-            PRINT 'Erro ao executar: ' + @SQL;
+            SET @LogMessage = 'Erro no índice ' + @IndexName + ' (Tabela ' + @TableName + '): ' + ERROR_MESSAGE();
+            RAISERROR(@LogMessage, 0, 1) WITH NOWAIT;
         END CATCH;
 
         FETCH NEXT FROM IndexCursor INTO @SchemaName, @TableName, @IndexName, @IndexID, @Fragmentation;
     END;
 
-    BEGIN TRY
+    -- Fechamento seguro do Cursor (FAST_FORWARD remove a necessidade de validações complexas no fechamento)
+    IF CURSOR_STATUS('local', 'IndexCursor') >= 0
+    BEGIN
         CLOSE IndexCursor;
         DEALLOCATE IndexCursor;
-    END TRY
-    BEGIN CATCH
-        IF CURSOR_STATUS('global', 'IndexCursor') >= 0
-        BEGIN
-            CLOSE IndexCursor;
-            DEALLOCATE IndexCursor;
-        END
-    END CATCH;
+    END
 END;
