@@ -20,8 +20,7 @@ CREATE TABLE #LogAcoes (
     Comando NVARCHAR(MAX) NULL
 );
 
--- Mapeia órfãos diretamente via Views de Catálogo (substitui sp_change_users_login)
--- Um usuário SQL ('S') é órfão se seu SID não existir em sys.server_principals
+-- Mapeia órfãos diretamente via Views de Catálogo
 SELECT 
     dp.name AS UserName,
     dp.sid AS UserSID,
@@ -103,13 +102,24 @@ END
 
 FinalScript:
 
+-- Coleta das contagens em variáveis escalares
+DECLARE @Reassociados INT;
+DECLARE @Erros INT;
+DECLARE @LoginsAusentes INT;
+
+SELECT 
+    @Reassociados   = COUNT(CASE WHEN Status = 'SUCESSO' THEN 1 END),
+    @Erros          = COUNT(CASE WHEN Status = 'ERRO' THEN 1 END),
+    @LoginsAusentes = COUNT(CASE WHEN Status = 'LOGIN_AUSENTE' THEN 1 END)
+FROM #LogAcoes;
+
 -- Resumo consolidado
 PRINT '';
 PRINT '==================== RESUMO FINAL ====================';
-PRINT 'Total de órfãos identificados: ' + CAST(@TotalOrfaos AS VARCHAR(10));
-PRINT 'Reassociados com sucesso: ' + CAST((SELECT COUNT(*) FROM #LogAcoes WHERE Status = 'SUCESSO') AS VARCHAR(10));
-PRINT 'Erros encontrados: ' + CAST((SELECT COUNT(*) FROM #LogAcoes WHERE Status = 'ERRO') AS VARCHAR(10));
-PRINT 'Logins não existentes na instância: ' + CAST((SELECT COUNT(*) FROM #LogAcoes WHERE Status = 'LOGIN_AUSENTE') AS VARCHAR(10));
+PRINT 'Total de órfãos identificados: ' + CAST(ISNULL(@TotalOrfaos, 0) AS VARCHAR(10));
+PRINT 'Reassociados com sucesso: ' + CAST(@Reassociados AS VARCHAR(10));
+PRINT 'Erros encontrados: ' + CAST(@Erros AS VARCHAR(10));
+PRINT 'Logins não existentes na instância: ' + CAST(@LoginsAusentes AS VARCHAR(10));
 
 IF @ModoSimulacao = 1
     PRINT 'ATENÇÃO: MODO SIMULAÇÃO ESTAVA ATIVO - Nenhuma alteração foi persistida.';
