@@ -112,8 +112,8 @@ Severidade: 🔴 bloqueante (erro no PostgreSQL) · 🟠 semântico (roda, resul
 
 | Padrão Encontrado | Ação Recomendada | Justificativa |
 | :--- | :--- | :--- |
-| 🟡 `(NOLOCK)` / `NOLOCK` em query **parseada** | Trocar por `%NoLock%` (higiene) | Doc oficial: o `ChangeQuery()` remove `NOLOCK`/`(NOLOCK)` da query retornada em todos os bancos. Validar com `GetLastQuery()[2]` se `WITH (NOLOCK)` também sai sem deixar um `WITH` órfão. |
-| 🔴 `(NOLOCK)` / `WITH (NOLOCK)` em query **crua** | `%NoLock%` + `ChangeQuery()`; se a query precisar continuar crua, helper `NoLock()` que devolve `"(NOLOCK)"` só quando `TcGetDb() == "MSSQL"` | O PostgreSQL usa MVCC e não bloqueia leitura; o hint gera erro de sintaxe. |
+| 🟡 `(NOLOCK)` / `NOLOCK` em query **parseada** | `BeginSQL`: trocar por `%NoLock%`; string manual: remover o literal (macro não vale fora do `BeginSQL`) | Doc oficial: o `ChangeQuery()` remove `NOLOCK`/`(NOLOCK)` da query retornada em todos os bancos. Validar com `GetLastQuery()[2]` se `WITH (NOLOCK)` também sai sem deixar um `WITH` órfão. |
+| 🔴 `(NOLOCK)` / `WITH (NOLOCK)` em query **crua** | Adicionar `ChangeQuery()` e remover o literal; se a query precisar continuar crua, helper `NoLock()` que devolve `"(NOLOCK)"` só quando `TcGetDb() == "MSSQL"` | O PostgreSQL usa MVCC e não bloqueia leitura; o hint gera erro de sintaxe. |
 | 🔴 `WITH (READPAST\|UPDLOCK\|ROWLOCK\|INDEX(...))`, `OPTION (RECOMPILE\|MAXDOP)` | Remover | Sem equivalente; `UPDLOCK` → `SELECT ... FOR UPDATE`. |
 | 🟡 `SELECT TOP n ...` (query principal) | Garantir `ChangeQuery()` | Converte `TOP n` para a sintaxe do banco. Em query crua (`%noparser%`, sem `ChangeQuery()`) é 🔴. |
 | 🔴 `SELECT DISTINCT TOP n ...` | `SELECT DISTINCT ... FETCH FIRST n ROWS ONLY` | `ChangeQuery()` pode não reconhecer `DISTINCT TOP`. |
@@ -238,6 +238,7 @@ Fonte: TDN — `ChangeQuery` (APLIB070.PRW), `MPSysOpenQuery`, `Embedded SQL`.
 | Remove espaços não significativos | Sem impacto |
 | Injeta filtro de acesso empresa/filial no `WHERE` | `WHERE` obrigatório (`1 = 1` se não houver filtro) |
 | Insere espaço em `SELECT`/`FROM`/`WHERE`/`ORDER BY`/`UNION` dentro de nomes ou conteúdo | Sinalizar campos como `ZZZ_FROM`; usar `FWPreparedStatement` |
+| Converte a query para maiúsculas (observado em produção; não está na TDN) | Tabela externa minúscula em banco case-sensitive e literais como `'$.id'` quebram; a query precisa ficar crua e 100% portável à mão |
 
 ### 11.2 Caminho de execução por ponto de chamada
 
@@ -246,7 +247,7 @@ Fonte: TDN — `ChangeQuery` (APLIB070.PRW), `MPSysOpenQuery`, `Embedded SQL`.
 | `BeginSQL ... EndSQL` | Sim (automático) | `%noparser%` desliga; `column X as Date/Numeric/Logical` vira `TCSetField()` |
 | `BeginSQL` com `%noparser%` | **Não** | Query crua |
 | `MPSysOpenQuery(cQuery, [cAlias], [aSetField], [cDriver], [aBindParam])` | **Não** | "apenas executa a query informada, não aplicando quaisquer tratamentos como os realizados pelo ChangeQuery". Fecha o alias se já existir; não muda a área corrente. `aBindParam` (lib 20211116+) na mesma ordem dos `?`. Padrão correto: `cQuery := ChangeQuery(cQuery)` antes |
-| `TCQUERY cQuery NEW ALIAS`, `TCGenQry()`+`DbUseArea()` | **Não** | Chamar `ChangeQuery()` antes |
+| `TCQUERY cQuery NEW ALIAS`, `TCGenQry()`+`DbUseArea()` | **Não** | Doc `TCGenQry`: a string é enviada diretamente ao DBAccess. Correção: `TCGenQry(,,ChangeQuery(cQuery))`. `TCQUERY` é traduzido em compilação para a mesma dupla. Só aceita `SELECT`. Manter `lNewArea = .T.` |
 | `TCSqlExec(cQuery)` | **Não** | Chamar `ChangeQuery()` antes |
 | `FWExecStatement():New(cQuery)` / `FWPreparedStatement():New(cQuery)` | **Não** | Chamar `ChangeQuery()` sobre a string com `?` antes de `New()` |
 
@@ -262,7 +263,18 @@ Após abrir o cursor, `GetLastQuery()` devolve um array de 5 posições:
 | `[4]` | `lNoParser` | `.T.` = a query foi crua |
 | `[5]` | Tempo de abertura (s) | |
 
-### 11.4 Regras de edição do bloco `BeginSQL/EndSQL`
+### 11.4 Tipos que chegam ao cursor (doc `TCGenQry`)
+
+| Tipo no SGBD | Chega ao AdvPL? | Ação |
+| :--- | :--- | :--- |
+| `CHAR`, `VARCHAR`, `TEXT` | Sim (caractere) | Campo data Protheus vem como `C`; tipar com `TCSetField()`/`aSetField` |
+| `INT`, `NUMERIC`, `FLOAT`, `DOUBLE` | Sim (numérico) | |
+| `DATE`, `TIMESTAMP`, `INTERVAL` | **Não** (coluna removida em silêncio) | `TO_CHAR(x, 'YYYYMMDD')`, `TO_CHAR(x, 'HH24:MI:SS')` ou `CAST(x AS VARCHAR)` |
+| `BOOLEAN` | **Não** | `CAST(x AS INTEGER)` ou `CASE WHEN x THEN '1' ELSE '0' END` |
+| `JSONB`/`JSON` | **Não** | `->>`/`#>>` (retornam texto) ou `CAST(x AS TEXT)` |
+| `BYTEA` | **Não** | `CONVERT_FROM(x, 'WIN1252')` ou `ENCODE(x, 'escape')` |
+
+### 11.5 Regras de edição do bloco `BeginSQL/EndSQL`
 
 | Regra | Motivo |
 | :--- | :--- |
