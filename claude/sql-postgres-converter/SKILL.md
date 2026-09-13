@@ -1,12 +1,12 @@
 ---
 name: sql-postgres-converter
-description: "Detecta e converte sintaxe SQL Server/DBAccess embutida em código AdvPL/TLPP para sintaxe segura e portável em PostgreSQL. Cobre hints (NOLOCK) literais, TOP n (inclusive DISTINCT TOP e TOP em subquery/APPLY), funções T-SQL (ISNULL, CONVERT, GETDATE, DATEDIFF, HASHBYTES, LEN, PATINDEX, ISNUMERIC, IIF, JSON_VALUE, STRING_AGG WITHIN GROUP, STUFF+FOR XML PATH), OUTER/CROSS APPLY, concatenação com +, DML T-SQL (UPDATE...FROM, DELETE alias FROM, MERGE, SELECT INTO), DDL/objetos (CREATE TRIGGER, dbo., sys.*, EXEC procedure), roundtrip CONVERT(VARBINARY) em memo, nomes cross-database, riscos semânticos silenciosos (comparação com '' e espaços à direita, LIKE case-sensitive, CAST de char para inteiro) e a camada de detecção de banco via TcGetDb() (anti-padrão 'não-Oracle = MSSQL'). Verifica se ChangeQuery() é chamado antes de MPSysOpenQuery/TCQUERY/FWExecStatement. Use quando o usuário disser 'converter para postgres', 'preparar código para migração postgres', 'corrigir NOLOCK para postgres', 'ISNULL para COALESCE', 'sql server para postgres', 'migrar query para postgres', 'auditar queries para postgres'."
+description: "Detecta e converte sintaxe SQL Server/DBAccess embutida em código AdvPL/TLPP para sintaxe segura e portável em PostgreSQL. Cobre hints (NOLOCK) literais, TOP n (inclusive DISTINCT TOP e TOP em subquery/APPLY), funções T-SQL (ISNULL, CONVERT, GETDATE, DATEDIFF, HASHBYTES, LEN, PATINDEX, ISNUMERIC, IIF, JSON_VALUE, STRING_AGG WITHIN GROUP, STUFF+FOR XML PATH), OUTER/CROSS APPLY, concatenação com +, DML T-SQL (UPDATE...FROM, DELETE alias FROM, MERGE, SELECT INTO), DDL/objetos (CREATE TRIGGER, dbo., sys.*, EXEC procedure), roundtrip CONVERT(VARBINARY) em memo, nomes cross-database, riscos semânticos silenciosos (comparação com '' e espaços à direita, LIKE case-sensitive, CAST de char para inteiro) e a camada de detecção de banco via TcGetDb() (anti-padrão 'não-Oracle = MSSQL'). Classifica cada query pelo caminho de execução (passa ou não por ChangeQuery(), %noparser%) e aplica o comportamento documentado do ChangeQuery (remoção de NOLOCK, tradução de || e SUBSTRING, sub-selects, filtro de acesso no WHERE, palavras reservadas em nomes de campo). Verifica se ChangeQuery() é chamado antes de MPSysOpenQuery/TCQUERY/FWExecStatement e valida com GetLastQuery(). Use quando o usuário disser 'converter para postgres', 'preparar código para migração postgres', 'corrigir NOLOCK para postgres', 'ISNULL para COALESCE', 'sql server para postgres', 'migrar query para postgres', 'auditar queries para postgres'."
 license: MIT
 metadata:
   domain: Protheus
   maintainer: Fernando Vernier
   category: Migração / Qualidade de Código
-  version: '2.0.0'
+  version: '2.1.0'
 ---
 
 # Conversor SQL Server → PostgreSQL para Protheus
@@ -15,12 +15,40 @@ metadata:
 
 O Protheus suporta MSSQL, Oracle e PostgreSQL através de abstrações do
 próprio framework (`RetSqlName`, `RetSqlTab`, `RetSqlCond`, macros DBAccess,
-`ChangeQuery()`). Essas abstrações resolvem parte da portabilidade, mas
-`ChangeQuery()` só traduz tokens de macro (`%notDel%`, `%table:`, etc.) e o
-`TOP n` da query principal. Qualquer sintaxe T-SQL escrita literalmente na
-string SQL (hints de lock, funções proprietárias, operadores, catálogos
-`sys.*`, DML/DDL proprietário) passa direto e quebra em tempo de execução
-quando o banco ativo é trocado para PostgreSQL.
+`ChangeQuery()`). Essas abstrações resolvem parte da portabilidade. Qualquer
+sintaxe T-SQL que o `ChangeQuery()` não traduz (funções proprietárias,
+`APPLY`, catálogos `sys.*`, DML/DDL proprietário) passa direto e quebra em
+tempo de execução quando o banco ativo é trocado para PostgreSQL.
+
+### O que o `ChangeQuery()` faz (documentação oficial, fonte `APLIB070.PRW`)
+
+Só é possível classificar corretamente um achado sabendo se a query **passa
+ou não** pelo `ChangeQuery()`. Comportamento documentado na TDN:
+
+| Comportamento | Consequência para esta skill |
+| --- | --- |
+| Exige query em sintaxe ANSI; joins `*=` não são suportados | `*=`/`=*` é 🔴 sempre |
+| Concatenação deve ser escrita com `\|\|`; o `ChangeQuery()` troca pelo operador do banco | `\|\|` é a forma oficial; `+` em SQL é 🔴 |
+| `SUBSTRING` deve ser usado na query; o `ChangeQuery()` troca pela função do banco | Nunca escrever `SUBSTR` |
+| Trata sub-selects (limite de 99; acima disso aborta com `TOO MANY SUB-SELECTS`) | `TOP` em sub-select **pode** ser traduzido; validar com `GetLastQuery()` |
+| Remove as expressões `NOLOCK` e `(NOLOCK)` da query retornada (todos os bancos) | `(NOLOCK)` literal só é 🔴 quando a query **não** passa pelo `ChangeQuery()` |
+| Remove espaços em branco não significativos | Sem impacto em literais |
+| Injeta o filtro de acesso empresa/filial na cláusula `WHERE` | Toda query precisa de `WHERE` (mesmo `1 = 1`); `GROUP BY` sem `WHERE` dá erro |
+| Insere espaço ao encontrar `SELECT`, `FROM`, `WHERE`, `ORDER BY`, `UNION` dentro de nomes de campo ou conteúdo (`ZZZ_FROM` vira `ZZZ_ FROM`) | 🔴 sinalizar; proteger com `FWPreparedStatement` |
+
+Caminhos de execução e se o `ChangeQuery()` é aplicado:
+
+| Caminho | Passa pelo `ChangeQuery()`? |
+| --- | --- |
+| `BeginSQL/EndSQL` sem `%noparser%` | Sim, automaticamente |
+| `BeginSQL/EndSQL` com `%noparser%` | **Não** — query crua |
+| String manual + `ChangeQuery(cQuery)` antes de executar | Sim |
+| `MPSysOpenQuery()`, `TCQUERY`, `TCGenQry`, `TCSqlExec`, `FWExecStatement`, `FWPreparedStatement` sem `ChangeQuery()` antes | **Não** — a doc do `MPSysOpenQuery` é explícita: "apenas executa a query informada, não aplicando quaisquer tratamentos como os realizados pelo ChangeQuery" |
+
+Ferramenta de validação: após abrir o cursor, `GetLastQuery()` devolve
+`[2]` a query efetivamente executada e `[4]` `lNoParser` (`.T.` = o
+`ChangeQuery()` não foi usado). Usar para confirmar no ambiente PostgreSQL o
+que o framework realmente traduziu antes de reescrever à mão.
 
 Há ainda uma segunda classe de problema, mais perigosa: **queries que rodam
 sem erro no PostgreSQL mas devolvem resultado diferente** (comparação com
@@ -60,9 +88,10 @@ depois de todas as edições.
 
 | Nível | Significado | Exemplos |
 | --- | --- | --- |
-| 🔴 **BLOQUEANTE** | Erro de sintaxe ou de execução no PostgreSQL | `(NOLOCK)`, `ISNULL`, `CONVERT`, `GETDATE`, `TOP` em subquery, `OUTER APPLY`, `JSON_VALUE`, `STRING_AGG ... WITHIN GROUP`, `FOR XML PATH`, `DELETE alias FROM`, `EXEC`, `dbo.`, `sys.*`, `+` entre strings |
+| 🔴 **BLOQUEANTE** | Erro de sintaxe ou de execução no PostgreSQL | `(NOLOCK)` em query crua, `%noparser%` com T-SQL, `*=`, `ISNULL`, `CONVERT`, `GETDATE`, `TOP` em subquery, `OUTER APPLY`, `JSON_VALUE`, `STRING_AGG ... WITHIN GROUP`, `FOR XML PATH`, `DELETE alias FROM`, `EXEC`, `dbo.`, `sys.*`, `+` entre strings |
 | 🟠 **SEMÂNTICO** | Executa sem erro, mas o resultado muda | `campo = ''`, literal sem padding, `LIKE` sem `UPPER`, `CAST(campo_char AS INTEGER)`, `ISNUMERIC`, ordenação por collation, `LEN` com espaços à direita |
 | 🟣 **ARQUITETURAL** | Não é conversão de texto; exige decisão humana | Nome cross-database (`banco.dbo.tabela`), trigger T-SQL, tabela criada por `SELECT INTO`, procedure externa, roundtrip `CONVERT(VARBINARY)` em memo, camada `TcGetDb()` caseira |
+| 🟡 **TRATADO PELO FRAMEWORK** | O `ChangeQuery()` resolve, desde que a query passe por ele; ajuste é higiene, não urgência | `(NOLOCK)` literal em query parseada, `TOP n` na query principal, `\|\|`, `SUBSTRING` |
 | 🟢 **PORTÁVEL** | Já funciona nos dois bancos; nunca reescrever | Ver seção abaixo |
 
 ## O que já é portável (nunca reescrever)
@@ -71,9 +100,10 @@ depois de todas as edições.
 | --- | --- |
 | `RetSqlName()`, `RetSqlTab()`, `RetFullName()` | Nativas do framework, resolvem o nome físico correto para o banco ativo |
 | `RetSqlCond()`, `RetSqlDel()`, `ValToSql()`, `FormatIn()` | Nativas, geram condição/literal no formato do banco ativo |
-| `%notDel%`, `%table:`, `%exp:`, `%xFilial:`, `%Order:`, `%NoLock%` | Macros DBAccess traduzidas automaticamente dentro de `BeginSQL/EndSQL` |
+| `%notDel%`, `%table:`, `%temp-table:`, `%exp:`, `%xFilial:`, `%Order:`, `%NoLock%` | Macros DBAccess traduzidas automaticamente dentro de `BeginSQL/EndSQL` (exceto com `%noparser%`) |
+| `a \|\| b` em query que passa pelo `ChangeQuery()` | Forma oficial de concatenação; o framework troca pelo operador do banco |
 | `FWExecStatement`/`FWPreparedStatement` com `?` | Bind portável, desde que a string base passe por `ChangeQuery()` antes de `New()` |
-| `COALESCE`, `NULLIF`, `CASE WHEN`, `CONCAT()`, `TRIM`, `RTRIM`, `LTRIM`, `UPPER`, `LOWER`, `REPLACE`, `SUBSTRING(x, pos, tam)`, `LEFT`, `RIGHT`, `ROW_NUMBER() OVER`, `EXISTS`, `UNION`, `!=`, `<>`, `%` (módulo) | Sintaxe idêntica ou compatível nos dois bancos |
+| `COALESCE`, `NULLIF`, `CASE WHEN`, `CONCAT()`, `TRIM`, `RTRIM`, `LTRIM`, `UPPER`, `LOWER`, `REPLACE`, `SUBSTRING(x, pos, tam)` (nunca `SUBSTR`), `LEFT`, `RIGHT`, `ROW_NUMBER() OVER`, `EXISTS`, `UNION`, `!=`, `<>`, `%` (módulo) | Sintaxe idêntica ou compatível nos dois bancos |
 | `OFFSET n ROWS FETCH NEXT n ROWS ONLY`, `FETCH FIRST n ROWS ONLY` | Sintaxe ANSI aceita por MSSQL 2012+, PostgreSQL, Oracle 12c+ e DB2 (MSSQL exige `ORDER BY`) |
 | `Stuff()`, `Len()`, `Str()`, `Space()`, `Replicate()`, `Round()`, `IIf()`, `IsNumeric()` sobre variáveis AdvPL | Funções nativas AdvPL homônimas de funções T-SQL; não são SQL, ignorar fora do literal |
 | Literais de data Protheus `'YYYYMMDD'` | Padrão nativo gravado como string de 8 caracteres; não converter para `DATE` a menos que haja aritmética de datas |
@@ -89,19 +119,34 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg`/`.prx` com SQL embutido:
    dentro de literais de string; ignorar código AdvPL fora deles.
 2. **Ignorar chamadas nativas** do framework (`RetSqlTab`, `RetSqlName`,
    `RetSqlCond`, `ValToSql`, `FormatIn`, `SqlOrder`).
-3. **Hints de lock** 🔴: `(NOLOCK)`/`WITH (NOLOCK)` literal → substituir por
-   `%NoLock%` em `BeginSQL`. Em strings montadas à mão, `%NoLock%` só é resolvido
-   se a string passar por `ChangeQuery()`; se isso não for garantido no
-   ambiente, usar um helper único `Static Function NoLock()` que devolve
-   `"(NOLOCK)"` apenas quando `Upper(TcGetDb()) == "MSSQL"` e `""` caso
-   contrário. Nunca apagar o hint sem substituto enquanto houver convivência com MSSQL.
-4. **Ponto de execução** 🔴: verificar se a string passa por `ChangeQuery()`
-   antes de `MPSysOpenQuery()`, `TCQUERY`, `TCGenQry`+`DbUseArea`,
-   `TCSqlExec()`, `FWExecStatement():New()` e `FWPreparedStatement():New()`.
-   Se não passar, propor adicionar a chamada no ponto de execução (padrão:
-   `cQuery := ChangeQuery(cQuery)` imediatamente antes).
-5. **Funções e sintaxe T-SQL literais** 🔴 (ver tabela completa na referência):
+3. **Classificar o caminho de execução** (decide a severidade dos itens
+   seguintes): a query passa pelo `ChangeQuery()` (`BeginSQL` sem
+   `%noparser%`, ou string manual com `ChangeQuery()` antes de executar) ou é
+   **crua** (`%noparser%`, ou `MPSysOpenQuery`/`TCQUERY`/`TCGenQry`/
+   `TCSqlExec`/`FWExecStatement`/`FWPreparedStatement` sem `ChangeQuery()`).
+   - Caminho cru sem justificativa → 🔴 propor `cQuery := ChangeQuery(cQuery)`
+     imediatamente antes do ponto de execução. Com `FWPreparedStatement`/
+     `MPSysOpenQuery(..., aBindParam)`, chamar `ChangeQuery()` sobre a string
+     com os `?` antes de fazer o bind; os parâmetros devem ser enviados na
+     mesma ordem em que os `?` aparecem.
+   - `%noparser%` → 🔴 tudo que o `ChangeQuery()` traduziria (`TOP`,
+     `\|\|`, `(NOLOCK)`, `SUBSTRING`) passa a ser responsabilidade do fonte;
+     avaliar se a diretiva é realmente necessária.
+   - Confirmar no ambiente com `GetLastQuery()[2]` (query enviada) e
+     `GetLastQuery()[4]` (`.T.` = sem parser).
+4. **Hints de lock**: `(NOLOCK)`/`WITH (NOLOCK)` literal.
+   - Query que passa pelo `ChangeQuery()` → 🟡 a doc oficial diz que
+     `NOLOCK`/`(NOLOCK)` são removidos da query para todos os bancos. Ajuste
+     recomendado por higiene: trocar por `%NoLock%`. **Validar** com
+     `GetLastQuery()[2]` se a forma `WITH (NOLOCK)` também sai limpa (a doc
+     cita só `NOLOCK` e `(NOLOCK)`; um `WITH` órfão seria erro de sintaxe).
+   - Query crua → 🔴 substituir por `%NoLock%` + `ChangeQuery()` (item 3).
+     Se por decisão do projeto a query precisar continuar crua, usar um
+     helper único `Static Function NoLock()` que devolve `"(NOLOCK)"` só
+     quando `Upper(TcGetDb()) == "MSSQL"` e `""` caso contrário.
+5. **Funções e sintaxe T-SQL literais** 🔴 (o `ChangeQuery()` não traduz nenhuma destas) (ver tabela completa na referência):
    - `ISNULL(a, b)` → `COALESCE(a, b)`
+   - `SUBSTR(x, p, n)` → `SUBSTRING(x, p, n)` (forma exigida pela doc; o framework converte por banco)
    - `GETDATE()` → `CURRENT_TIMESTAMP` (ou `CURRENT_DATE`)
    - `DATEDIFF(DAY, campo_char8, GETDATE())` → `(CURRENT_DATE - TO_DATE(campo_char8, 'YYYYMMDD'))`
    - `CONVERT(VARCHAR, expr, estilo)` / `CONVERT(CHAR(8), datetime, 112)` → `TO_CHAR(expr, 'máscara')`
@@ -111,7 +156,7 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg`/`.prx` com SQL embutido:
    - `HASHBYTES('MD5', x)` + `CONVERT(VARCHAR(32), ..., 2)` → `UPPER(MD5(x))` (nativo, sem `pgcrypto`); SHA exige `pgcrypto`/`digest()`
    - `ISNUMERIC(x) = 1` → `x ~ '^[0-9]+$'`
    - `IIF(cond, a, b)` → `CASE WHEN cond THEN a ELSE b END`
-   - `JSON_VALUE(CAST(col AS VARCHAR(MAX)), '$.chave')` → `(CAST(col AS TEXT)::jsonb ->> 'chave')`
+   - `JSON_VALUE(CAST(col AS VARCHAR(MAX)), '$.chave')` → `(CAST(CAST(col AS TEXT) AS JSONB) ->> 'chave')`
    - `STRING_AGG(x, sep) WITHIN GROUP (ORDER BY y)` → `STRING_AGG(x, sep ORDER BY y)`
    - `STUFF((SELECT ',' + col ... FOR XML PATH('')), 1, 1, '')` → `(SELECT STRING_AGG(col, ',' ORDER BY col) ...)`
    - `CHAR(13)`/`CHAR(10)` dentro do SQL → `CHR(13)`/`CHR(10)`
@@ -119,14 +164,21 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg`/`.prx` com SQL embutido:
    - `CROSS APPLY (...)` → `CROSS JOIN LATERAL (...)`
 6. **Concatenação** 🔴: operador `+` entre colunas/literais *dentro da string
    SQL* (ex.: `E1_PREFIXO+E1_NUM`, `', ' + SC6.C6_TES`, `C6_ITEM + RTRIM(C6_PRODUTO)`)
-   → reescrever como `a || b` ou `CONCAT(a, b)`. `CONCAT()` é a opção mais
-   portável entre MSSQL e PostgreSQL. **Atenção:** não alterar o `+` do AdvPL
-   que concatena pedaços da string fora do literal SQL.
-7. **`TOP n`** 🔴:
-   - `SELECT TOP n` na query principal: garantir `ChangeQuery()`.
-   - `SELECT DISTINCT TOP n`: `ChangeQuery()` pode não tratar; reescrever como `SELECT DISTINCT ... LIMIT n` ou `FETCH FIRST n ROWS ONLY` (portável).
+   → reescrever como `a || b`. É a forma **oficial** da TDN: o `ChangeQuery()`
+   troca `||` pelo operador do banco ativo (inclusive `+` no MSSQL), então a
+   query continua funcionando na convivência. Usar `CONCAT(a, b)` apenas em
+   query crua que não possa passar pelo `ChangeQuery()`. A doc alerta que
+   concatenação em SQL é custosa (pode exigir área temporária no banco);
+   quando o resultado só alimenta o AdvPL, preferir concatenar no fonte.
+   **Atenção:** não alterar o `+` do AdvPL que concatena pedaços da string
+   fora do literal SQL.
+7. **`TOP n`**:
+   - `SELECT TOP n` na query principal: 🟡 garantir `ChangeQuery()`.
+   - `SELECT DISTINCT TOP n`: 🔴 não há garantia documentada; reescrever como `SELECT DISTINCT ... FETCH FIRST n ROWS ONLY` (portável) ou `LIMIT n` (só PG).
    - `EXISTS (SELECT TOP 1 ...)` / `NOT EXISTS (SELECT TOP 1 ...)`: **remover o `TOP 1`**; o `EXISTS` já avalia presença.
-   - `ISNULL((SELECT TOP 1 col ... ), '')` e subqueries escalares, derivadas ou em `APPLY`: `ChangeQuery()` não alcança; reescrever com `ORDER BY ... FETCH FIRST 1 ROWS ONLY` (portável, exige `ORDER BY` no MSSQL), `LIMIT 1` (só PG), ou `MIN()`/`MAX()`/`ROW_NUMBER()` quando semanticamente equivalente.
+   - `TOP 1` em sub-select escalar ou derivado (`ISNULL((SELECT TOP 1 col ...), '')`, `JOIN (SELECT TOP 1 ...)`): a doc oficial diz que o `ChangeQuery()` trata os sub-selects (até 99). Classificar como 🟡 **a validar** com `GetLastQuery()[2]` no PostgreSQL; se a tradução não ocorrer, reescrever com `ORDER BY ... FETCH FIRST 1 ROWS ONLY` (portável, exige `ORDER BY` no MSSQL), `LIMIT 1` (só PG), ou `MIN()`/`MAX()`/`ROW_NUMBER()` quando semanticamente equivalente.
+   - `TOP 1` dentro de `OUTER/CROSS APPLY`: 🔴 o `APPLY` em si não é traduzido; ver item 5.
+   - Mais de 99 sub-selects na mesma query: 🔴 `Parser Query Error: TOO MANY SUB-SELECTS`; quebrar a query.
    - Injeção condicional de `"Top 1"` por código AdvPL (`If(!lOracle, "Top 1", "")`): ver item 11.
 8. **Riscos semânticos silenciosos** 🟠 (a query roda, mas o resultado muda):
    - **Comparação com string vazia**: `D_E_L_E_T_ = ''`, `campo <> ''`, `IN ('')`. No MSSQL `'' = ' '` é verdadeiro (espaços à direita são ignorados no `VARCHAR`); no PostgreSQL e no Oracle não. O Protheus grava campos caractere preenchidos com espaços até o tamanho do SX3. Corrigir para `= ' '` (um espaço) em `D_E_L_E_T_`, e preferencialmente `%notDel%`/`RetSqlCond()`. Para outros campos: `campo = ' '` com padding correto ou `RTRIM(campo) = ''`.
@@ -173,32 +225,64 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg`/`.prx` com SQL embutido:
     ```
 12. **`BeginSQL/EndSQL`**: mesmo com macros, o corpo pode conter funções
     T-SQL literais (`CONVERT`, `ISNULL`, `LEN`) e `(NOLOCK)`; aplicar os
-    itens 5 a 8 também dentro do bloco.
-13. **Produzir o relatório** no formato abaixo antes de qualquer edição.
+    itens 5 a 8 também dentro do bloco. Regras do pré-compilador ao editar o
+    bloco (documentação Embedded SQL):
+    - Nenhuma linha dentro do bloco pode **começar** com `*` (é tratada como
+      comentário). Cuidado ao quebrar expressões como `A * B` em duas linhas.
+    - `EndSQL` deve ficar na coluna 0, sem espaço ou tabulação antes.
+    - Não chamar funções no meio do bloco; calcular antes em variável e usar
+      `%exp:var%`.
+    - `?` é caractere reservado; nunca introduzir os operadores jsonb `?`,
+      `?|`, `?&` do PostgreSQL dentro do bloco (usar `->>`/`#>>` ou
+      `FWPreparedStatement`).
+    - Preferir `CAST(x AS JSONB)` a `x::jsonb` dentro do bloco, para não
+      depender do parser aceitar `::`.
+13. **Pré-requisitos do `ChangeQuery()`** 🔴 (valem para qualquer query
+    parseada):
+    - Cláusula `WHERE` obrigatória, mesmo que `WHERE 1 = 1`: o framework
+      injeta o filtro de acesso empresa/filial nela; `GROUP BY` sem `WHERE`
+      gera erro de execução.
+    - Nomes de campo ou conteúdo contendo `SELECT`, `FROM`, `WHERE`,
+      `ORDER BY` ou `UNION` (ex.: `ZZZ_FROM`, `ZZZ_TO`, `ZZZ_SELECT`) são
+      quebrados pelo parser (`ZZZ_ FROM`). Sinalizar e proteger com
+      `FWPreparedStatement`; se o campo for customizado, sugerir renomear.
+    - Join legado `*=`/`=*` → reescrever como `LEFT/RIGHT JOIN ... ON`.
+    - `SUBSTR(...)` → `SUBSTRING(...)`.
+14. **Produzir o relatório** no formato abaixo antes de qualquer edição.
 
 ## Formato do Relatório
 
 Para cada arquivo, uma tabela:
 
-| # | Linha | Severidade | Padrão | Trecho original | Correção proposta |
-| --- | --- | --- | --- | --- | --- |
+| # | Linha | Caminho | Severidade | Padrão | Trecho original | Correção proposta |
+| --- | --- | --- | --- | --- | --- | --- |
 
 Seguida de um resumo consolidado por severidade e de uma lista dos itens
 🟣 ARQUITETURAL que exigem decisão do usuário. A ordem de execução
-recomendada é: 🔴 de maior volume e menor risco primeiro (`(NOLOCK)`,
-`ChangeQuery()` ausente, `ISNULL`), depois 🔴 pontuais (`CONVERT`,
+recomendada é: primeiro garantir o caminho parseado (`ChangeQuery()`
+ausente, `%noparser%` desnecessário, `WHERE` ausente), pois isso resolve de
+uma vez `(NOLOCK)`, `TOP` principal e `||`; depois 🔴 de maior volume
+(`ISNULL`, `+` em SQL, `SUBSTR`), depois 🔴 pontuais (`CONVERT`,
 `STRING_AGG`, `APPLY`, DML), depois 🟠 semânticos (exigem entendimento do
-dado), e por último os 🟣.
+dado), 🟡 de higiene, e por último os 🟣. Incluir no relatório, por query, a
+coluna **Caminho** (`parseado` / `cru` / `noparser`).
 
 ## Anti-Padrões
 
 | Anti-padrão | Por que é errado |
 | --- | --- |
-| Apagar `(NOLOCK)` em vez de trocar por `%NoLock%`/helper | Quebra a leitura sem lock no MSSQL durante o período de convivência |
+| Classificar `(NOLOCK)` como 🔴 sem olhar o caminho de execução | Em query parseada o `ChangeQuery()` já remove o hint (doc oficial); o esforço deve ir para garantir o `ChangeQuery()`, não para 887 substituições manuais |
+| Apagar `(NOLOCK)` de query **crua** sem substituto | Quebra a leitura sem lock no MSSQL durante o período de convivência |
+| Recomendar `CONCAT()` como forma padrão | A forma oficial é `\|\|`; o `ChangeQuery()` traduz para o operador de cada banco |
+| Escrever `SUBSTR` | A doc exige `SUBSTRING`; o framework converte por banco |
+| Query sem cláusula `WHERE` | O `ChangeQuery()` injeta o filtro de acesso no `WHERE`; sem ela (sobretudo com `GROUP BY`) dá erro de execução |
+| Introduzir `?`, `?\|`, `?&` (jsonb) ou `::` dentro de `BeginSQL` | `?` é reservado no Embedded SQL; preferir `->>`/`#>>` e `CAST(x AS JSONB)` |
+| Iniciar linha do `BeginSQL` com `*` ou indentar o `EndSQL` | O pré-compilador trata `*` como comentário e exige `EndSQL` na coluna 0 |
 | Reescrever `RetSqlTab`/`RetSqlCond`/`RetSqlName`/`ValToSql` | Já são portáveis; gera retrabalho |
 | Confundir `+` do AdvPL com `+` do SQL | Quebra a montagem da string no fonte |
 | Manter `SELECT TOP 1` dentro de `EXISTS (...)` | Falso erro de sintaxe no DBAccess para PostgreSQL |
-| Confiar em `ChangeQuery()` para `TOP` em subquery, `DISTINCT TOP` ou `APPLY` | `ChangeQuery()` só trata o `TOP` da query principal |
+| Confiar em `ChangeQuery()` para `DISTINCT TOP` ou `APPLY` | Não há tradução documentada; sub-selects simples são tratados (doc), mas devem ser validados com `GetLastQuery()` |
+| Afirmar que `ChangeQuery()` não alcança subqueries | A doc oficial diz que trata todos os sub-selects (limite 99); validar em vez de reescrever cegamente |
 | Converter `'YYYYMMDD'` para `TO_DATE()` indiscriminadamente | O Protheus armazena datas em strings de 8 posições; só converter quando há aritmética |
 | Trocar `campo = ''` por `RTRIM(campo) = ''` em massa | Perde uso de índice; preferir `= ' '` ou `%notDel%`/`RetSqlCond()` |
 | Envolver todo `LIKE` com `UPPER()` sem analisar o dado | Perde índice e mascara filtros sobre chaves já normalizadas |
