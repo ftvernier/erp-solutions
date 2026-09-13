@@ -35,6 +35,7 @@ ou não** pelo `ChangeQuery()`. Comportamento documentado na TDN:
 | Remove espaços em branco não significativos | Sem impacto em literais |
 | Injeta o filtro de acesso empresa/filial na cláusula `WHERE` | Toda query precisa de `WHERE` (mesmo `1 = 1`); `GROUP BY` sem `WHERE` dá erro |
 | Insere espaço ao encontrar `SELECT`, `FROM`, `WHERE`, `ORDER BY`, `UNION` dentro de nomes de campo ou conteúdo (`ZZZ_FROM` vira `ZZZ_ FROM`) | 🔴 sinalizar; proteger com `FWPreparedStatement` |
+| Converte a query para maiúsculas (comportamento observado em produção, não documentado na TDN) | Tabelas externas com nome minúsculo em banco case-sensitive e literais como caminho JSON (`'$.id'`) são corrompidos. Essas queries ficam **cruas por necessidade**: precisam ser 100% portáveis à mão (sem `TOP`, `(NOLOCK)`, `+`, `ISNULL`) ou ramificar por `TcGetDb()` |
 
 Caminhos de execução e se o `ChangeQuery()` é aplicado:
 
@@ -44,6 +45,7 @@ Caminhos de execução e se o `ChangeQuery()` é aplicado:
 | `BeginSQL/EndSQL` com `%noparser%` | **Não** — query crua |
 | String manual + `ChangeQuery(cQuery)` antes de executar | Sim |
 | `MPSysOpenQuery()`, `TCQUERY`, `TCGenQry`, `TCSqlExec`, `FWExecStatement`, `FWPreparedStatement` sem `ChangeQuery()` antes | **Não** — a doc do `MPSysOpenQuery` é explícita: "apenas executa a query informada, não aplicando quaisquer tratamentos como os realizados pelo ChangeQuery" |
+| `DbUseArea(.T., "TOPCONN", TCGenQry(,,cQuery), cAlias, .F., .T.)` e o comando `TCQUERY cQuery NEW ALIAS cAlias` (traduzido em compilação para a mesma dupla) | **Não** — a doc do `TCGenQry` diz que a string "é enviada diretamente ao TOTVS DBAccess". Correção: `TCGenQry(,,ChangeQuery(cQuery))`. Não alterar `lNewArea` (1º parâmetro): com `.F.` a tabela da workarea atual é fechada |
 
 Ferramenta de validação: após abrir o cursor, `GetLastQuery()` devolve
 `[2]` a query efetivamente executada e `[4]` `lNoParser` (`.T.` = o
@@ -100,7 +102,7 @@ depois de todas as edições.
 | --- | --- |
 | `RetSqlName()`, `RetSqlTab()`, `RetFullName()` | Nativas do framework, resolvem o nome físico correto para o banco ativo |
 | `RetSqlCond()`, `RetSqlDel()`, `ValToSql()`, `FormatIn()` | Nativas, geram condição/literal no formato do banco ativo |
-| `%notDel%`, `%table:`, `%temp-table:`, `%exp:`, `%xFilial:`, `%Order:`, `%NoLock%` | Macros DBAccess traduzidas automaticamente dentro de `BeginSQL/EndSQL` (exceto com `%noparser%`) |
+| `%notDel%`, `%table:`, `%temp-table:`, `%exp:`, `%xFilial:`, `%Order:`, `%NoLock%` | Macros do pré-compilador Embedded SQL, resolvidas **somente** dentro de `BeginSQL/EndSQL` (exceto com `%noparser%`); em string manual não têm efeito |
 | `a \|\| b` em query que passa pelo `ChangeQuery()` | Forma oficial de concatenação; o framework troca pelo operador do banco |
 | `FWExecStatement`/`FWPreparedStatement` com `?` | Bind portável, desde que a string base passe por `ChangeQuery()` antes de `New()` |
 | `COALESCE`, `NULLIF`, `CASE WHEN`, `CONCAT()`, `TRIM`, `RTRIM`, `LTRIM`, `UPPER`, `LOWER`, `REPLACE`, `SUBSTRING(x, pos, tam)` (nunca `SUBSTR`), `LEFT`, `RIGHT`, `ROW_NUMBER() OVER`, `EXISTS`, `UNION`, `!=`, `<>`, `%` (módulo) | Sintaxe idêntica ou compatível nos dois bancos |
@@ -129,6 +131,7 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg`/`.prx` com SQL embutido:
      `MPSysOpenQuery(..., aBindParam)`, chamar `ChangeQuery()` sobre a string
      com os `?` antes de fazer o bind; os parâmetros devem ser enviados na
      mesma ordem em que os `?` aparecem.
+   - Query crua **por necessidade** (comentário no fonte justificando: nome de tabela minúsculo, caminho JSON, `?` no conteúdo) → manter crua, mas então **todo** o T-SQL dela é 🔴 e deve ser reescrito de forma portável; nunca propor `ChangeQuery()` nesses casos.
    - `%noparser%` → 🔴 tudo que o `ChangeQuery()` traduziria (`TOP`,
      `\|\|`, `(NOLOCK)`, `SUBSTRING`) passa a ser responsabilidade do fonte;
      avaliar se a diretiva é realmente necessária.
@@ -136,14 +139,21 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg`/`.prx` com SQL embutido:
      `GetLastQuery()[4]` (`.T.` = sem parser).
 4. **Hints de lock**: `(NOLOCK)`/`WITH (NOLOCK)` literal.
    - Query que passa pelo `ChangeQuery()` → 🟡 a doc oficial diz que
-     `NOLOCK`/`(NOLOCK)` são removidos da query para todos os bancos. Ajuste
-     recomendado por higiene: trocar por `%NoLock%`. **Validar** com
-     `GetLastQuery()[2]` se a forma `WITH (NOLOCK)` também sai limpa (a doc
-     cita só `NOLOCK` e `(NOLOCK)`; um `WITH` órfão seria erro de sintaxe).
-   - Query crua → 🔴 substituir por `%NoLock%` + `ChangeQuery()` (item 3).
-     Se por decisão do projeto a query precisar continuar crua, usar um
-     helper único `Static Function NoLock()` que devolve `"(NOLOCK)"` só
-     quando `Upper(TcGetDb()) == "MSSQL"` e `""` caso contrário.
+     `NOLOCK`/`(NOLOCK)` são removidos da query para todos os bancos
+     (inclusive MSSQL, então o hint já não tem efeito). Higiene: em
+     `BeginSQL`, trocar por `%NoLock%`; em string manual, **remover o
+     literal** e deixar um espaço entre alias e a próxima cláusula
+     (`" SA2 "`), pois `%NoLock%` é macro do pré-compilador do Embedded SQL
+     e não é resolvida em string comum. **Validar** com `GetLastQuery()[2]`
+     se a forma `WITH (NOLOCK)` também sai limpa (a doc cita só `NOLOCK` e
+     `(NOLOCK)`; um `WITH` órfão seria erro de sintaxe).
+   - Query crua → 🔴 adicionar `ChangeQuery()` (item 3) e remover o literal,
+     como acima. Se por decisão do projeto a query precisar continuar crua,
+     usar um helper único `Static Function NoLock()` que devolve `"(NOLOCK)"`
+     só quando `Upper(TcGetDb()) == "MSSQL"` e `""` caso contrário.
+   - Ao remover `(NOLOCK)` de linha com string sem aspas de fechamento
+     (`cQry += "... CB8 (NOLOCK)` até o fim da linha), fechar a string com
+     espaço final; senão o alias cola na próxima cláusula (`CB8WHERE`).
 5. **Funções e sintaxe T-SQL literais** 🔴 (o `ChangeQuery()` não traduz nenhuma destas) (ver tabela completa na referência):
    - `ISNULL(a, b)` → `COALESCE(a, b)`
    - `SUBSTR(x, p, n)` → `SUBSTRING(x, p, n)` (forma exigida pela doc; o framework converte por banco)
@@ -248,7 +258,20 @@ Para cada arquivo `.prw`/`.tlpp`/`.prg`/`.prx` com SQL embutido:
       `FWPreparedStatement`; se o campo for customizado, sugerir renomear.
     - Join legado `*=`/`=*` → reescrever como `LEFT/RIGHT JOIN ... ON`.
     - `SUBSTR(...)` → `SUBSTRING(...)`.
-14. **Produzir o relatório** no formato abaixo antes de qualquer edição.
+14. **Tipos de retorno do cursor** 🔴 (doc do `TCGenQry`, vale para todo
+    cursor aberto por `MPSysOpenQuery`/`TCQUERY`/`DbUseArea`): só colunas
+    **caractere** e **numéricas** chegam ao AdvPL; qualquer outra é
+    **removida silenciosamente** da estrutura na abertura. No PostgreSQL isso
+    atinge `DATE`, `TIMESTAMP`, `BOOLEAN`, `JSONB`, `BYTEA`, `INTERVAL`.
+    Toda expressão do `SELECT` deve resolver para texto ou número:
+    `TO_CHAR(data, 'YYYYMMDD')`, `CAST(x AS VARCHAR)`, `CAST(bool AS INTEGER)`,
+    `->>` (texto) em vez de `->` (jsonb). Conferir especialmente as
+    conversões desta própria skill (`DATEADD` → `DATE + n`, `CAST(... AS
+    JSONB)`) quando o resultado for coluna de saída e não só filtro. Campo
+    data Protheus continua chegando como caractere; usar `TCSetField()` ou
+    `aSetField` do `MPSysOpenQuery` para tipar. `TCGenQry` só aceita
+    `SELECT`; DML/DDL vai por `TCSqlExec`.
+15. **Produzir o relatório** no formato abaixo antes de qualquer edição.
 
 ## Formato do Relatório
 
@@ -277,6 +300,7 @@ coluna **Caminho** (`parseado` / `cru` / `noparser`).
 | Escrever `SUBSTR` | A doc exige `SUBSTRING`; o framework converte por banco |
 | Query sem cláusula `WHERE` | O `ChangeQuery()` injeta o filtro de acesso no `WHERE`; sem ela (sobretudo com `GROUP BY`) dá erro de execução |
 | Introduzir `?`, `?\|`, `?&` (jsonb) ou `::` dentro de `BeginSQL` | `?` é reservado no Embedded SQL; preferir `->>`/`#>>` e `CAST(x AS JSONB)` |
+| Selecionar coluna `DATE`/`TIMESTAMP`/`BOOLEAN`/`JSONB`/`BYTEA` sem converter para texto ou número | O cursor descarta a coluna sem erro (doc `TCGenQry`); o AdvPL falha depois com campo inexistente |
 | Iniciar linha do `BeginSQL` com `*` ou indentar o `EndSQL` | O pré-compilador trata `*` como comentário e exige `EndSQL` na coluna 0 |
 | Reescrever `RetSqlTab`/`RetSqlCond`/`RetSqlName`/`ValToSql` | Já são portáveis; gera retrabalho |
 | Confundir `+` do AdvPL com `+` do SQL | Quebra a montagem da string no fonte |
